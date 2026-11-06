@@ -1,53 +1,75 @@
-from typing import List
-from fastapi import APIRouter
-from app.schemas.ai import SentimentAnalyzeRequest, SentimentResult, MarketSentimentOverview
+from typing import List, Optional
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import get_db
+from app.schemas.ai import (
+    SentimentAnalyzeRequest,
+    SentimentResult,
+    SentimentBatchRequest,
+    SentimentBatchResponse,
+    MarketSentimentOverview,
+)
+from app.sentiment.finbert_engine import finbert_engine
+from app.sentiment.news_ingestion import news_ingestion_service
+from app.analytics.sentiment_correlation import sentiment_correlation_service
+from app.services.market_data_service import market_data_service
 
 router = APIRouter()
 
 
-@router.post("/analyze", response_model=SentimentResult, summary="Analyze Financial Headline Sentiment")
+@router.post("/analyze", response_model=SentimentResult, summary="FinBERT Financial Sentiment Inference")
 async def analyze_sentiment(payload: SentimentAnalyzeRequest):
-    """Executes AI sentiment classification on input text."""
-    # Structural Phase 1 fallback / rule-based response before FinBERT deep integration in Phase 3
-    lowered = payload.text.lower()
-    pos_words = ["surge", "beat", "record", "profit", "gain", "bullish", "high", "growth", "strong"]
-    neg_words = ["drop", "miss", "loss", "plunge", "bearish", "fall", "decline", "weak", "warning"]
-    
-    pos_matches = sum(1 for w in pos_words if w in lowered)
-    neg_matches = sum(1 for w in neg_words if w in lowered)
-    
-    if pos_matches > neg_matches:
-        sentiment = "positive"
-        pos, neg, neu = 0.88, 0.05, 0.07
-    elif neg_matches > pos_matches:
-        sentiment = "negative"
-        pos, neg, neu = 0.05, 0.88, 0.07
-    else:
-        sentiment = "neutral"
-        pos, neg, neu = 0.15, 0.15, 0.70
+    """Executes AI sentiment classification on input headline/snippet using FinBERT."""
+    result = finbert_engine.analyze_headline(payload.text, payload.symbol)
+    return SentimentResult(**result)
 
-    return SentimentResult(
-        headline=payload.text,
-        symbol=payload.symbol,
-        sentiment=sentiment,
-        positive_score=pos,
-        negative_score=neg,
-        neutral_score=neu,
-        confidence=max(pos, neg, neu),
-        relevance_score=0.95,
-        model_name="ProsusAI/finbert (Phase 1 Stub)"
+
+@router.post("/analyze/batch", response_model=SentimentBatchResponse, summary="Batch FinBERT Inference")
+async def analyze_sentiment_batch(payload: SentimentBatchRequest):
+    """Executes batch inference across multiple financial headlines."""
+    items = [{"text": i.text, "symbol": i.symbol} for i in payload.items]
+    results = finbert_engine.analyze_batch(items)
+    return SentimentBatchResponse(
+        total_processed=len(results),
+        results=[SentimentResult(**r) for r in results]
     )
 
 
-@router.get("/sentiment/{symbol}", response_model=MarketSentimentOverview, summary="Get Asset Sentiment Metrics")
-async def get_asset_sentiment(symbol: str):
-    """Returns aggregated sentiment metrics for a specific symbol."""
-    return MarketSentimentOverview(
-        bullish_index=0.62,
-        bearish_index=0.18,
-        neutral_index=0.20,
-        overall_sentiment="bullish",
-        sentiment_trend="positive",
-        analyzed_headlines_count=12
-    )
+@router.get("/sentiment/{symbol}", response_model=MarketSentimentOverview, summary="Asset FinBERT Sentiment Metrics")
+async def get_asset_sentiment(symbol: str, db: AsyncSession = Depends(get_db)):
+    """Computes Bullish, Bearish, and Neutral indices for a specific asset based on news."""
+    news = await news_ingestion_service.get_latest_news_feed(db, symbol=symbol, limit=20)
+    sentiment_records = [
+        {
+            "positive_score": n.get("positive_score", 0.5),
+            "negative_score": n.get("negative_score", 0.2),
+            "neutral_score": n.get("neutral_score", 0.3),
+        }
+        for n in news
+    ]
+    aggregated = finbert_engine.aggregate_sentiment_metrics(sentiment_records)
+    return MarketSentimentOverview(**aggregated)
 
+
+@router.get("/correlation/{symbol}", summary="Sentiment and Price Correlation Dynamics")
+async def get_sentiment_price_correlation(
+    symbol: str,
+    timeframe: str = Query("1d", description="Timeframe candle window"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Investigates mathematical relationships between sentiment shifts and asset price moves."""
+    from app.data_pipeline.yahoo_provider import yahoo_provider
+    
+    # Get candles
+    candles_res = await market_data_service.get_historical_candles(db, symbol, timeframe=timeframe, limit=60)
+    news = await news_ingestion_service.get_latest_news_feed(db, symbol=symbol, limit=20)
+
+    import polars as pl
+    candles_df = pl.DataFrame(candles_res.get("candles", []))
+    
+    analysis = sentiment_correlation_service.analyze_sentiment_price_dynamics(
+        candles_df=candles_df,
+        sentiments=news,
+        symbol=symbol,
+    )
+    return analysis

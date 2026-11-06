@@ -95,11 +95,42 @@ async def sync_market_data(
     }
 
 
-@router.get("/{symbol}/indicators", response_model=List[IndicatorResponse], summary="Get Technical Indicators")
+@router.get("/{symbol}/indicators", summary="Get Computed Technical Indicators & Signals")
 async def get_market_indicators(
     symbol: str,
-    indicator: Optional[str] = Query(None, description="Specific indicator: SMA_20, EMA_12, RSI_14, MACD, etc."),
+    timeframe: str = Query("1d", description="Timeframe: 1m, 5m, 15m, 1h, 4h, 1d, 1wk"),
+    limit: int = Query(60, ge=20, le=500),
     db: AsyncSession = Depends(get_db)
 ):
-    """Returns computed technical indicators for the specified symbol."""
-    return []
+    """Returns computed technical indicators (SMA, EMA, RSI, MACD, Bollinger, ATR) and quantitative signals."""
+    from app.indicators.technical_engine import technical_engine
+    import polars as pl
+
+    candles_res = await market_data_service.get_historical_candles(
+        db=db,
+        symbol=symbol,
+        timeframe=timeframe,
+        limit=limit,
+    )
+
+    candles = candles_res.get("candles", [])
+    if not candles:
+        return {"status": "empty", "signals": [], "metrics": {}}
+
+    pl_dict = {
+        "timestamp": [c["timestamp"] for c in candles],
+        "open": [c["open"] for c in candles],
+        "high": [c["high"] for c in candles],
+        "low": [c["low"] for c in candles],
+        "close": [c["close"] for c in candles],
+        "volume": [c["volume"] for c in candles],
+    }
+    df = pl.DataFrame(pl_dict)
+
+    signals_report = technical_engine.generate_signals(df)
+    return {
+        "symbol": symbol.upper(),
+        "timeframe": timeframe,
+        "total_candles": len(candles),
+        **signals_report,
+    }

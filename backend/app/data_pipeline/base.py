@@ -30,3 +30,4 @@ class BaseDataProvider(ABC):
     async def get_latest_quote(self, symbol: str) -> Dict[str, Any]:
         """Returns real-time or latest available quote dictionary."""
         pass
+

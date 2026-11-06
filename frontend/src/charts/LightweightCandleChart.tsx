@@ -162,3 +162,4 @@ export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
     </div>
   );
 };
+

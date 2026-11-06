@@ -57,3 +57,4 @@ async def test_market_quote_api_endpoint(async_client: AsyncClient):
     assert "change_percent" in data
     assert "day_high" in data
     assert "day_low" in data
+

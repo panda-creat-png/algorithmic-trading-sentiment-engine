@@ -49,3 +49,4 @@ class CryptoDataProvider(BaseDataProvider):
 
 
 crypto_provider = CryptoDataProvider()
+

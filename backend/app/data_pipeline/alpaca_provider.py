@@ -40,3 +40,4 @@ class AlpacaProvider(BaseDataProvider):
 
 
 alpaca_provider = AlpacaProvider()
+

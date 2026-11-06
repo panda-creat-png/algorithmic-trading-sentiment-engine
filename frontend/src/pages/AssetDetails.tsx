@@ -9,6 +9,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Zap,
+  Sliders,
+  TrendingUp,
 } from 'lucide-react';
 
 export const AssetDetails: React.FC = () => {
@@ -35,10 +37,21 @@ export const AssetDetails: React.FC = () => {
     refetchInterval: 10000,
   });
 
+  // Fetch computed technical indicators & quantitative signals
+  const { data: indicatorData, refetch: refetchIndicators } = useQuery({
+    queryKey: ['technical-indicators', selectedSymbol, timeframe],
+    queryFn: () => api.getTechnicalIndicators(selectedSymbol, timeframe, 60),
+    staleTime: 30000,
+  });
+
   const candles = historyData?.candles || [];
   const latestCandle = candles.length > 0 ? candles[candles.length - 1] : null;
 
   const isPositive = (quoteData?.change ?? 0) >= 0;
+
+  const metrics = indicatorData?.latest_metrics || {};
+  const signals = indicatorData?.signals || [];
+  const bias = indicatorData?.bias || 'BULLISH';
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -54,11 +67,17 @@ export const AssetDetails: React.FC = () => {
               <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-slate-800 text-slate-300 border border-slate-700">
                 {selectedSymbol.includes('-USD') ? 'CRYPTO 24/7' : 'US EQUITY'}
               </span>
-              {historyData?.source && (
-                <span className="px-2 py-0.5 rounded text-[10px] uppercase font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  REAL DATA ({historyData.source})
-                </span>
-              )}
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${
+                  bias === 'BULLISH'
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    : bias === 'BEARISH'
+                    ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                    : 'bg-slate-800 text-slate-300 border-slate-700'
+                }`}
+              >
+                BIAS: {bias}
+              </span>
             </div>
             <div className="flex items-center gap-3 mt-1">
               <span className="text-xl font-black text-white font-mono">
@@ -91,10 +110,13 @@ export const AssetDetails: React.FC = () => {
           </div>
 
           <button
-            onClick={() => refetchHistory()}
+            onClick={() => {
+              refetchHistory();
+              refetchIndicators();
+            }}
             disabled={historyFetching}
             className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors"
-            title="Refresh candles from Yahoo Finance"
+            title="Refresh candles & indicators"
           >
             <RefreshCw className={`w-4 h-4 ${historyFetching ? 'animate-spin text-emerald-400' : ''}`} />
           </button>
@@ -138,36 +160,80 @@ export const AssetDetails: React.FC = () => {
         </div>
       </div>
 
-      {/* Key Real Market Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Real Computed Technical Indicators Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Box 1: Trend Indicators */}
         <div className="p-4 rounded-xl bg-[#0e1526] border border-slate-800">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Day High</span>
-          <div className="text-xl font-bold text-white font-mono mt-1">
-            ${(quoteData?.day_high ?? latestCandle?.high ?? 0).toFixed(2)}
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+            <span>Trend & Moving Averages</span>
+            <Sliders className="w-3.5 h-3.5 text-emerald-400" />
+          </div>
+          <div className="mt-2 space-y-1.5 font-mono text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-400">SMA 20:</span>
+              <span className="text-slate-200 font-bold">${metrics.sma_20 ? metrics.sma_20.toFixed(2) : '--'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">SMA 50:</span>
+              <span className="text-slate-200 font-bold">${metrics.sma_50 ? metrics.sma_50.toFixed(2) : '--'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">VWAP:</span>
+              <span className="text-cyan-400 font-bold">${latestCandle?.vwap ? latestCandle.vwap.toFixed(2) : '--'}</span>
+            </div>
           </div>
         </div>
 
+        {/* Box 2: Momentum & Volatility */}
         <div className="p-4 rounded-xl bg-[#0e1526] border border-slate-800">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Day Low</span>
-          <div className="text-xl font-bold text-white font-mono mt-1">
-            ${(quoteData?.day_low ?? latestCandle?.low ?? 0).toFixed(2)}
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+            <span>Momentum & Volatility</span>
+            <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+          </div>
+          <div className="mt-2 space-y-1.5 font-mono text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-400">RSI (14):</span>
+              <span className={`font-bold ${metrics.rsi_14 > 70 ? 'text-rose-400' : metrics.rsi_14 < 30 ? 'text-emerald-400' : 'text-slate-200'}`}>
+                {metrics.rsi_14 ? metrics.rsi_14.toFixed(2) : '50.00'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">MACD Line:</span>
+              <span className="text-slate-200 font-bold">{metrics.macd_line ? metrics.macd_line.toFixed(2) : '--'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">ATR (14):</span>
+              <span className="text-slate-200 font-bold">${metrics.atr_14 ? metrics.atr_14.toFixed(2) : '--'}</span>
+            </div>
           </div>
         </div>
 
+        {/* Box 3: Bollinger & Signals */}
         <div className="p-4 rounded-xl bg-[#0e1526] border border-slate-800">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">24h Trading Volume</span>
-          <div className="text-xl font-bold text-white font-mono mt-1">
-            {((quoteData?.volume ?? latestCandle?.volume ?? 0) / 1000000).toFixed(2)}M
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+            <span>Quantitative Signals</span>
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
           </div>
-        </div>
-
-        <div className="p-4 rounded-xl bg-[#0e1526] border border-slate-800">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Data Pipeline Engine</span>
-          <div className="text-sm font-bold text-emerald-400 font-mono mt-1 flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5" />
-            <span>POLARS INGESTION</span>
+          <div className="mt-2 space-y-1 text-xs">
+            {signals.length > 0 ? (
+              signals.map((sig: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between py-1 border-b border-slate-800/60 font-mono">
+                  <span className="text-slate-300 font-bold">{sig.type}</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      sig.signal.includes('BULLISH')
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-rose-500/20 text-rose-400'
+                    }`}
+                  >
+                    {sig.signal}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="text-slate-500 py-3 text-center">No active breakout thresholds triggered.</div>
+            )}
           </div>
-          <span className="text-[11px] text-slate-500">UTC Normalized & Deduplicated</span>
         </div>
       </div>
     </div>

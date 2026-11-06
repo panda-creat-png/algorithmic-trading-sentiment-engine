@@ -46,6 +46,25 @@ export const api = {
     return res.data;
   },
 
+  getTechnicalIndicators: async (symbol: string, timeframe = '1d', limit = 60): Promise<any> => {
+    const res = await apiClient.get(`/market/${symbol}/indicators`, {
+      params: { timeframe, limit },
+    });
+    return res.data;
+  },
+
+  getSentimentCorrelation: async (symbol: string, timeframe = '1d'): Promise<any> => {
+    const res = await apiClient.get(`/ai/correlation/${symbol}`, {
+      params: { timeframe },
+    });
+    return res.data;
+  },
+
+  syncNews: async (symbols?: string[]): Promise<any> => {
+    const res = await apiClient.post('/news/sync', symbols ? { symbols } : {});
+    return res.data;
+  },
+
   // News & AI Sentiment
   getNews: async (symbol?: string, limit = 20): Promise<NewsArticle[]> => {
     const res = await apiClient.get<NewsArticle[]>('/news', {

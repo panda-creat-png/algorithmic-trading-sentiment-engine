@@ -93,3 +93,4 @@ def test_detect_missing_gaps():
     gaps = validation_service.detect_missing_gaps(df, timeframe="1m", is_crypto=True)
     assert len(gaps) == 1
     assert gaps[0]["missing_duration_seconds"] == 300.0
+
