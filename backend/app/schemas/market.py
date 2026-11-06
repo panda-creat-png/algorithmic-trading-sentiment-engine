@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -25,7 +25,7 @@ class AssetResponse(AssetBase):
 
 
 class CandleResponse(BaseModel):
-    timestamp: datetime
+    timestamp: str
     open: float
     high: float
     low: float
@@ -34,18 +34,39 @@ class CandleResponse(BaseModel):
     trades_count: Optional[int] = None
     vwap: Optional[float] = None
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 class MarketHistoryResponse(BaseModel):
     symbol: str
     timeframe: str
+    source: Optional[str] = "live"
     total_candles: int
     candles: List[CandleResponse]
 
 
+class MarketQuoteResponse(BaseModel):
+    symbol: str
+    price: float
+    previous_close: float
+    change: float
+    change_percent: float
+    day_high: float
+    day_low: float
+    volume: float
+    year_high: Optional[float] = None
+    year_low: Optional[float] = None
+    currency: str = "USD"
+    cached: bool = False
+    updated_at: str
+
+
+class SyncAssetsRequest(BaseModel):
+    symbols: Optional[List[str]] = None
+    timeframe: str = "1d"
+    limit: int = 100
+
+
 class IndicatorDataPoint(BaseModel):
-    timestamp: datetime
+    timestamp: str
     value: float
     secondary_value: Optional[float] = None
     tertiary_value: Optional[float] = None
@@ -56,4 +77,3 @@ class IndicatorResponse(BaseModel):
     indicator_name: str
     timeframe: str
     data: List[IndicatorDataPoint]
-

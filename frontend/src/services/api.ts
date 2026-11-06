@@ -34,6 +34,11 @@ export const api = {
     return res.data;
   },
 
+  getQuote: async (symbol: string): Promise<any> => {
+    const res = await apiClient.get(`/market/${symbol}/quote`);
+    return res.data;
+  },
+
   getMarketHistory: async (symbol: string, timeframe = '1d', limit = 100): Promise<MarketHistory> => {
     const res = await apiClient.get<MarketHistory>(`/market/${symbol}/history`, {
       params: { timeframe, limit },

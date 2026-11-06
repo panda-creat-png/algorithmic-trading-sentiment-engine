@@ -5,6 +5,8 @@ from app.schemas.market import (
     AssetResponse,
     CandleResponse,
     MarketHistoryResponse,
+    MarketQuoteResponse,
+    SyncAssetsRequest,
     IndicatorResponse,
     IndicatorDataPoint,
 )
@@ -42,6 +44,8 @@ __all__ = [
     "AssetResponse",
     "CandleResponse",
     "MarketHistoryResponse",
+    "MarketQuoteResponse",
+    "SyncAssetsRequest",
     "IndicatorResponse",
     "IndicatorDataPoint",
     "NewsArticleBase",
@@ -64,4 +68,3 @@ __all__ = [
     "PositionModel",
     "SimulationRequest",
 ]
-

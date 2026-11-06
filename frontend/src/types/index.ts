@@ -37,8 +37,25 @@ export interface Candle {
 export interface MarketHistory {
   symbol: string;
   timeframe: string;
+  source?: string;
   total_candles: number;
   candles: Candle[];
+}
+
+export interface MarketQuote {
+  symbol: string;
+  price: number;
+  previous_close: number;
+  change: number;
+  change_percent: number;
+  day_high: number;
+  day_low: number;
+  volume: number;
+  year_high?: number;
+  year_low?: number;
+  currency: string;
+  cached?: boolean;
+  updated_at: string;
 }
 
 export interface NewsArticle {
