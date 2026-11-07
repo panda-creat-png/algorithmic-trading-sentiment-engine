@@ -53,3 +53,4 @@ async def test_run_backtest_api_endpoint(async_client: AsyncClient):
     assert list_res.status_code == 200
     runs = list_res.json()
     assert len(runs) >= 1
+

@@ -60,3 +60,4 @@ class MovingAverageCrossoverStrategy(BaseStrategy):
         ).drop(["prev_fast", "prev_slow"])
 
         return result
+

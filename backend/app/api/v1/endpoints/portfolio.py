@@ -1,50 +1,36 @@
-from datetime import datetime, timezone
-from fastapi import APIRouter
-from app.schemas.portfolio import PortfolioOverview, PositionModel, SimulationRequest
+from fastapi import APIRouter, HTTPException
+from app.schemas.portfolio import PortfolioOverview, PaperOrderRequest, SimulationRequest
+from app.services.portfolio_service import portfolio_service
 
 router = APIRouter()
 
 
-@router.get("", response_model=PortfolioOverview, summary="Get Current Paper Portfolio")
+@router.get("", response_model=PortfolioOverview, summary="Get Current Mark-to-Market Paper Portfolio")
 async def get_portfolio():
-    """Returns paper portfolio equity, cash, unrealized/realized PnL, and current positions."""
-    return PortfolioOverview(
-        total_equity=125430.50,
-        cash_balance=45200.00,
-        unrealized_pnl=4230.50,
-        realized_pnl=21200.00,
-        total_return_pct=25.43,
-        positions=[
-            PositionModel(
-                symbol="NVDA",
-                quantity=40,
-                average_entry_price=112.50,
-                current_price=138.20,
-                market_value=5528.00,
-                unrealized_pnl=1028.00,
-                unrealized_pnl_pct=22.84,
-            ),
-            PositionModel(
-                symbol="AAPL",
-                quantity=150,
-                average_entry_price=215.00,
-                current_price=227.40,
-                market_value=34110.00,
-                unrealized_pnl=1860.00,
-                unrealized_pnl_pct=5.77,
-            ),
-            PositionModel(
-                symbol="BTC-USD",
-                quantity=0.65,
-                average_entry_price=62400.00,
-                current_price=66250.00,
-                market_value=43062.50,
-                unrealized_pnl=2502.50,
-                unrealized_pnl_pct=6.17,
-            ),
-        ],
-        timestamp=datetime.now(timezone.utc)
-    )
+    """Returns live paper portfolio equity, cash, unrealized/realized PnL, and current positions marked to live quotes."""
+    return await portfolio_service.get_overview()
+
+
+@router.post("/order", response_model=PortfolioOverview, summary="Execute Paper Order")
+async def execute_paper_order(payload: PaperOrderRequest):
+    """Executes a paper BUY or SELL order at current live price and updates portfolio positions."""
+    try:
+        return await portfolio_service.execute_order(
+            symbol=payload.symbol,
+            side=payload.side,
+            quantity=payload.quantity
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Order execution error: {str(e)}")
+
+
+@router.post("/reset", response_model=PortfolioOverview, summary="Reset Paper Portfolio")
+async def reset_paper_portfolio():
+    """Resets paper trading account back to $100,000 cash balance."""
+    portfolio_service.reset_portfolio()
+    return await portfolio_service.get_overview()
 
 
 @router.post("/simulate", summary="Run Portfolio Rebalancing Simulation")
@@ -59,4 +45,3 @@ async def simulate_portfolio(payload: SimulationRequest):
         "sharpe_ratio": 1.54,
         "rebalance_count": 12,
     }
-

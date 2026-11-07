@@ -32,3 +32,4 @@ def get_strategy(strategy_type: str, parameters: Dict[str, Any] = None) -> BaseS
         valid_types = ", ".join(STRATEGY_REGISTRY.keys())
         raise ValueError(f"Unknown strategy_type '{strategy_type}'. Valid types: {valid_types}")
     return cls(parameters=parameters or {})
+

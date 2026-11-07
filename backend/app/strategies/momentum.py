@@ -55,3 +55,4 @@ class MomentumStrategy(BaseStrategy):
         ).drop(["prev_roc"])
 
         return result
+

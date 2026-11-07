@@ -82,3 +82,4 @@ class AISentimentStrategy(BaseStrategy):
             signals.append(sig)
 
         return df.with_columns(pl.Series("signal", signals, dtype=pl.Int32))
+

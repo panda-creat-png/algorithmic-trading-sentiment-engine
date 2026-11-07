@@ -141,3 +141,4 @@ class PerformanceMetricsCalculator:
             "exposure_time": round(float(exposure_time), 4),
             "benchmark_return": round(float(benchmark_return), 4) if benchmark_return is not None else None,
         }
+

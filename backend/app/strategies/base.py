@@ -42,3 +42,4 @@ class BaseStrategy(ABC):
     def get_parameter(self, key: str, default: Any = None) -> Any:
         """Retrieves a parameter value with an optional default fallback."""
         return self.parameters.get(key, default)
+

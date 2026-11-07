@@ -110,5 +110,15 @@ export const api = {
     const res = await apiClient.get<PortfolioOverview>('/portfolio');
     return res.data;
   },
+
+  executePaperOrder: async (data: { symbol: string; side: 'buy' | 'sell'; quantity: number }): Promise<PortfolioOverview> => {
+    const res = await apiClient.post<PortfolioOverview>('/portfolio/order', data);
+    return res.data;
+  },
+
+  resetPortfolio: async (): Promise<PortfolioOverview> => {
+    const res = await apiClient.post<PortfolioOverview>('/portfolio/reset');
+    return res.data;
+  },
 };
 

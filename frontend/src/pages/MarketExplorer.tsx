@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, ExternalLink } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { api } from '../services/api';
 import type { Asset } from '../types';
@@ -56,7 +56,7 @@ export const MarketExplorer: React.FC = () => {
             </span>
           </div>
           <p className="text-sm text-slate-400">
-            Real-time tracked institutional equities and cryptocurrencies.
+            Real-time tracked institutional equities and cryptocurrencies with live feeds.
           </p>
         </div>
 
@@ -133,9 +133,10 @@ export const MarketExplorer: React.FC = () => {
                 <td className="py-3 px-4 text-center font-sans">
                   <button
                     onClick={() => handleSelect(asset.symbol)}
-                    className="px-3 py-1 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 font-bold transition-all text-[11px]"
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 font-bold transition-all text-[11px]"
                   >
-                    Open Live Chart
+                    <span>Open Live Chart</span>
+                    <ExternalLink className="w-3 h-3" />
                   </button>
                 </td>
               </tr>

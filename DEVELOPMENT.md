@@ -12,8 +12,8 @@ This document tracks implementation status, architectural milestones, verified e
 | **Phase 2** | **Market Data Pipeline (Yahoo Finance, Alpaca, OHLCV, Polars data engine, Cache & Validation)** | **COMPLETED ✅** | Real live OHLCV ingestion, Polars 2.1 validation, TradingView Lightweight Charts, 15/15 Pytest tests passed |
 | **Phase 3** | **AI Financial Sentiment Engine (FinBERT) & Polars Technical Analysis Engine** | **COMPLETED ✅** | FinBERT cached & verified, Polars technical indicators & signals, live news ingestion, sentiment correlation, 27/27 Pytest tests passed |
 | **Phase 4** | **Algorithmic Strategy Builder & Event-Driven Backtesting Engine** | **COMPLETED ✅** | 7 modular quant strategies, strict zero look-ahead bias engine, slippage/fee modeling, 34/34 Pytest tests passed, React equity curve |
-| **Phase 5** | Interactive Institutional Dashboard (TradingView lightweight charts, live overview, heatmaps) | *Pending User Approval* | Next milestone |
-| **Phase 6** | Security, Authentication (JWT), End-to-End Testing, Optimization & Production Deployment | *Pending* | - |
+| **Phase 5** | **Interactive Institutional Dashboard & Real-Time Analytics** | **COMPLETED ✅** | Real-time overview, mark-to-market paper portfolio, live order routing, monthly returns heatmap, 36/36 Pytest tests passed |
+| **Phase 6** | Security, Authentication (JWT), End-to-End Testing, Optimization & Production Deployment | *Pending User Approval* | Next milestone |
 
 ---
 
@@ -173,8 +173,54 @@ This document tracks implementation status, architectural milestones, verified e
 
 ---
 
-## 🚀 Next Milestone: Phase 5 (Interactive Institutional Dashboard & Real-Time Analytics)
-*Awaiting User Approval to begin Phase 5.*
-- Build comprehensive Market Overview (Top Gainers, Losers, Market Sentiment Heatmap).
-- Integrate synchronized candlestick + sentiment + indicators multi-pane charts.
-- Build Portfolio Simulator with real-time mark-to-market positions and paper-trading execution.
+## 📋 Completed Tasks (Phase 5: Interactive Institutional Dashboard & Real-Time Analytics)
+
+### 1. Live Institutional Overview Dashboard
+- Upgraded [`Overview.tsx`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/pages/Overview.tsx):
+  - **Tracked Asset Overview**: Live prices, 24h percentage changes, and asset classes for top symbols (`NVDA`, `AAPL`, `MSFT`, `TSLA`, `BTC-USD`, `ETH-USD`).
+  - **Market Movement**: Dynamic ranking of **Top Gainers** and **Top Decliners** based on real-time quotes.
+  - **Institutional Sentiment Index Gauge**: Real-time Bullish %, Bearish %, and Neutral % gauges powered by the FinBERT sentiment engine.
+  - **Live Financial News Stream**: Verified financial headlines with source attribution, publication timestamps, and sentiment verification tags.
+  - **Quick Paper Portfolio Preview**: Mark-to-market total equity, cash ratio, and cumulative return.
+
+### 2. Live Mark-to-Market Portfolio Simulator & Paper Order Routing
+- Implemented [`PaperPortfolioService`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/services/portfolio_service.py):
+  - In-memory paper portfolio initialized with active positions (`NVDA`, `AAPL`, `BTC-USD`).
+  - `get_overview`: Dynamically marks all open positions to live quotes fetched from Yahoo Finance.
+  - `execute_order`: Supports **BUY** and **SELL** market orders, cash validation, weighted average cost basis adjustment, and realized profit/loss booking.
+  - `reset_portfolio`: Resets account balance to $100,000 liquid cash.
+- Upgraded [`portfolio.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/api/v1/endpoints/portfolio.py) endpoints:
+  - `GET /api/v1/portfolio`: Returns live mark-to-market equity, cash, unrealized/realized P&L, and open positions.
+  - `POST /api/v1/portfolio/order`: Routes paper orders and returns updated portfolio overview.
+  - `POST /api/v1/portfolio/reset`: Resets portfolio to $100,000 cash.
+- Upgraded [`PortfolioSimulator.tsx`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/pages/PortfolioSimulator.tsx):
+  - Interactive Paper Order Ticket with symbol quick-selector, Buy/Sell side toggle, quantity inputs, estimated cost preview, and feedback alerts.
+  - Asset Allocation Distribution bar visualizing invested positions vs liquid cash ratio.
+  - Active Positions table with real-time mark-to-market prices, entry prices, unrealized P&L ($ and %), and quick 1-click Sell buttons.
+
+### 3. Quantitative Performance Analytics & Risk Attribution
+- Upgraded [`PerformanceAnalytics.tsx`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/pages/PerformanceAnalytics.tsx):
+  - **Monthly Returns Heatmap Matrix**: 12-month calendar grid across multiple years (2024, 2025, 2026) with color-coded returns intensity.
+  - **Risk Attribution Metrics**: CAGR, 252-day annualized volatility, Calmar ratio, Sortino ratio, and capital deployment exposure time.
+  - **Trade P&L Return Distribution Histogram**: Frequency distribution across 5 return ranges ($<-5\%$, $-5\%\dots 0\%$, $0\%\dots +5\%$, $+5\%\dots +10\%$, $>+10\%$).
+
+### 4. Market Explorer & Multi-Timeframe Charting
+- Upgraded [`MarketExplorer.tsx`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/pages/MarketExplorer.tsx):
+  - Instant symbol search and asset class filtering (`all`, `stock`, `crypto`).
+  - One-click navigation into [`AssetDetails.tsx`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/pages/AssetDetails.tsx) featuring TradingView Lightweight Candlestick and Volume charts across 7 timeframes (`1m`, `5m`, `15m`, `1h`, `4h`, `1d`, `1wk`).
+
+### 5. Automated Verification & Test Coverage
+- Pytest suite expanded from 34 to **36 comprehensive tests** (100% passing):
+  - `tests/test_portfolio.py` (2 tests):
+    - `test_get_portfolio_endpoint`: Verifies live mark-to-market equity and open position structures.
+    - `test_paper_order_execution_and_reset`: Verifies order execution, cash deduction, position tracking, partial sells, and account reset.
+- Frontend production build (`tsc -b && vite build`) passed in 2.66s with 0 errors.
+
+---
+
+## 🚀 Next Milestone: Phase 6 (Security, Authentication JWT, End-to-End Testing, Optimization & Production Deployment)
+*Awaiting User Approval to begin Phase 6.*
+- JWT user registration, login, and secure token management (`/api/v1/auth/login`, `/register`).
+- Role-based route protection on sensitive research endpoints.
+- End-to-end integration and load testing.
+- Docker & Docker-Compose production configuration verification.

@@ -303,3 +303,4 @@ class BacktestEngine:
             "trades": trades,
             "equity_curve": equity_curve,
         }
+
