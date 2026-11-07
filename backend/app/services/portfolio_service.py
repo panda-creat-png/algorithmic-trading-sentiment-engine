@@ -126,3 +126,4 @@ class PaperPortfolioService:
 
 
 portfolio_service = PaperPortfolioService()
+

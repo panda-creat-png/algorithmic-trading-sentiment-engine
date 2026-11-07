@@ -23,6 +23,8 @@ export const TopNavbar: React.FC = () => {
     isDarkTheme,
     toggleTheme,
     health,
+    currentUser,
+    setActiveTab,
   } = useAppStore();
 
   useHealth(); // activate polling
@@ -151,15 +153,23 @@ export const TopNavbar: React.FC = () => {
           </button>
 
           {/* User Profile Avatar */}
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-emerald-500 flex items-center justify-center text-xs font-bold text-white shadow-sm">
-              QM
+          <button
+            onClick={() => setActiveTab('settings')}
+            className="flex items-center gap-2 pl-2 border-l border-slate-800 hover:opacity-85 transition-opacity text-left"
+            title="View Account & Settings"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-emerald-500 flex items-center justify-center text-xs font-bold text-white shadow-sm font-mono">
+              {currentUser?.full_name ? currentUser.full_name.slice(0, 2).toUpperCase() : 'QM'}
             </div>
             <div className="hidden xl:flex flex-col text-left">
-              <span className="text-xs font-semibold text-slate-200">Quant Director</span>
-              <span className="text-[10px] text-emerald-400 font-mono">INSTITUTIONAL</span>
+              <span className="text-xs font-semibold text-slate-200">
+                {currentUser?.full_name || 'Institutional Quant'}
+              </span>
+              <span className="text-[10px] text-emerald-400 font-mono">
+                {currentUser ? 'AUTHENTICATED' : 'GUEST / LOCAL'}
+              </span>
             </div>
-          </div>
+          </button>
         </div>
       </div>
     </header>

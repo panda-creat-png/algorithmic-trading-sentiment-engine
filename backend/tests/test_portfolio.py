@@ -42,3 +42,4 @@ async def test_paper_order_execution_and_reset(async_client: AsyncClient):
     sell_data = sell_res.json()
     assert len(sell_data["positions"]) == 1
     assert sell_data["positions"][0]["quantity"] == 6.0
+

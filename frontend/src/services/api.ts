@@ -21,6 +21,14 @@ export const apiClient = axios.create({
   timeout: 10000,
 });
 
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('quantmind_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const api = {
   // System Health
   getHealth: async (): Promise<HealthResponse> => {
@@ -118,6 +126,22 @@ export const api = {
 
   resetPortfolio: async (): Promise<PortfolioOverview> => {
     const res = await apiClient.post<PortfolioOverview>('/portfolio/reset');
+    return res.data;
+  },
+
+  // Auth & Security
+  register: async (payload: { email: string; password: string; full_name?: string }): Promise<any> => {
+    const res = await apiClient.post('/auth/register', payload);
+    return res.data;
+  },
+
+  login: async (payload: { email: string; password: string }): Promise<any> => {
+    const res = await apiClient.post('/auth/login', payload);
+    return res.data;
+  },
+
+  getMe: async (): Promise<any> => {
+    const res = await apiClient.get('/auth/me');
     return res.data;
   },
 };

@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import type { NavTab, HealthResponse } from '../types';
 
+interface AppUser {
+  id: number;
+  email: string;
+  full_name?: string;
+  is_superuser?: boolean;
+}
+
 interface AppState {
   activeTab: NavTab;
   setActiveTab: (tab: NavTab) => void;
@@ -19,6 +26,11 @@ interface AppState {
 
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
+
+  currentUser: AppUser | null;
+  authToken: string | null;
+  loginUser: (user: AppUser, token: string) => void;
+  logoutUser: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -39,5 +51,25 @@ export const useAppStore = create<AppState>((set) => ({
 
   sidebarCollapsed: false,
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+
+  currentUser: (() => {
+    try {
+      const u = localStorage.getItem('quantmind_user');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  })(),
+  authToken: localStorage.getItem('quantmind_token') || null,
+  loginUser: (user, token) => {
+    localStorage.setItem('quantmind_token', token);
+    localStorage.setItem('quantmind_user', JSON.stringify(user));
+    set({ currentUser: user, authToken: token });
+  },
+  logoutUser: () => {
+    localStorage.removeItem('quantmind_token');
+    localStorage.removeItem('quantmind_user');
+    set({ currentUser: null, authToken: null });
+  },
 }));
 
