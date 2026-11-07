@@ -89,3 +89,4 @@ def test_signal_generation(sample_ohlcv_df: pl.DataFrame):
     assert signals["bias"] in ("BULLISH", "BEARISH", "NEUTRAL")
     assert "latest_metrics" in signals
     assert signals["latest_metrics"]["rsi_14"] > 0
+

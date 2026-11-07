@@ -86,3 +86,4 @@ class SentimentPriceCorrelationService:
 
 
 sentiment_correlation_service = SentimentPriceCorrelationService()
+

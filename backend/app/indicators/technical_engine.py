@@ -250,3 +250,4 @@ class TechnicalAnalysisEngine:
 
 
 technical_engine = TechnicalAnalysisEngine()
+

@@ -64,3 +64,4 @@ async def test_ai_correlation_endpoint(async_client: AsyncClient):
     assert "time_windows" in data
     assert "1h" in data["time_windows"]
     assert "24h" in data["time_windows"]
+

@@ -170,3 +170,4 @@ class NewsIngestionService:
 
 
 news_ingestion_service = NewsIngestionService()
+
