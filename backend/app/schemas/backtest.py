@@ -4,14 +4,17 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 class BacktestRequest(BaseModel):
-    strategy_id: int
-    symbol: str = Field(..., max_length=32)
-    start_date: datetime
-    end_date: datetime
+    strategy_id: Optional[int] = 1
+    strategy_type: Optional[str] = "ma_crossover"
+    symbol: str = Field(default="NVDA", max_length=32)
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     timeframe: str = Field(default="1d", max_length=16)
     initial_capital: float = Field(default=100000.0, gt=0)
     fee_rate: float = Field(default=0.001, ge=0)       # 0.1% per trade
     slippage: float = Field(default=0.0005, ge=0)     # 5 bps
+    stop_loss_pct: Optional[float] = Field(default=None, ge=0.001, le=0.5)
+    take_profit_pct: Optional[float] = Field(default=None, ge=0.001, le=2.0)
     parameters: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -42,6 +45,8 @@ class BacktestMetrics(BaseModel):
     calmar_ratio: Optional[float] = None
     win_rate: Optional[float] = None
     profit_factor: Optional[float] = None
+    avg_winning_trade: Optional[float] = None
+    avg_losing_trade: Optional[float] = None
     total_trades: int = 0
     annualized_volatility: Optional[float] = None
     exposure_time: Optional[float] = None
@@ -59,9 +64,11 @@ class BacktestResponse(BaseModel):
     timeframe: str
     initial_capital: float
     final_equity: Optional[float] = None
+    total_fees_paid: Optional[float] = 0.0
     metrics: BacktestMetrics
+    equity_curve: Optional[List[Dict[str, Any]]] = None
+    trades: Optional[List[TradeResponse]] = None
     error_message: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-

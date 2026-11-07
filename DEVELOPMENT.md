@@ -11,8 +11,8 @@ This document tracks implementation status, architectural milestones, verified e
 | **Phase 1** | **Environment Inspection, Foundation Architecture, PostgreSQL, Redis, Backend & Frontend Initialization** | **COMPLETED ✅** | Async DB session, live Redis caching, 6/6 Pytest tests passed, React 19 + TypeScript build passed |
 | **Phase 2** | **Market Data Pipeline (Yahoo Finance, Alpaca, OHLCV, Polars data engine, Cache & Validation)** | **COMPLETED ✅** | Real live OHLCV ingestion, Polars 2.1 validation, TradingView Lightweight Charts, 15/15 Pytest tests passed |
 | **Phase 3** | **AI Financial Sentiment Engine (FinBERT) & Polars Technical Analysis Engine** | **COMPLETED ✅** | FinBERT cached & verified, Polars technical indicators & signals, live news ingestion, sentiment correlation, 27/27 Pytest tests passed |
-| **Phase 4** | Algorithmic Strategy Builder & Event-Driven Backtesting (Zero look-ahead bias, slippage, commission, metrics) | *Pending User Approval* | Next milestone |
-| **Phase 5** | Interactive Institutional Dashboard (TradingView lightweight charts, live updates, dark mode UI) | *In Progress (Charts Active)* | - |
+| **Phase 4** | **Algorithmic Strategy Builder & Event-Driven Backtesting Engine** | **COMPLETED ✅** | 7 modular quant strategies, strict zero look-ahead bias engine, slippage/fee modeling, 34/34 Pytest tests passed, React equity curve |
+| **Phase 5** | Interactive Institutional Dashboard (TradingView lightweight charts, live overview, heatmaps) | *Pending User Approval* | Next milestone |
 | **Phase 6** | Security, Authentication (JWT), End-to-End Testing, Optimization & Production Deployment | *Pending* | - |
 
 ---
@@ -114,19 +114,67 @@ This document tracks implementation status, architectural milestones, verified e
 
 ---
 
-## 🚀 Next Milestone: Phase 4 (Algorithmic Strategy Builder & Event-Driven Backtesting)
-*Awaiting User Approval to begin Phase 4.*
-- Build modular strategy interface in `backend/app/backtesting/strategies/`:
-  1. Dual Moving Average Crossover
-  2. RSI Overbought / Oversold
-  3. MACD Crossover
-  4. Bollinger Bands Reversal
-  5. Momentum Strategy
-  6. AI Sentiment-Based Strategy
-  7. Combined Technical + Sentiment Strategy
-- Build Event-Driven Backtesting Engine in `backend/app/backtesting/engine.py`:
-  - Strict prevention of look-ahead bias: Candle $t$ signals execute on candle $t+1$ open. News publication timestamps must strictly precede bar timestamp.
-  - Automated look-ahead bias test suite proving future data cannot influence historical signals.
-  - Portfolio tracking, position management, slippage, commission, take-profit, stop-loss.
-  - Performance metrics calculation: Sharpe, Sortino, Calmar, Max Drawdown, CAGR, Win Rate, Profit Factor, Exposure Time, and Buy & Hold benchmark comparison.
-  - Connect UI Strategy Builder and Backtesting pages to live execution.
+## 📋 Completed Tasks (Phase 4: Algorithmic Strategy Builder & Event-Driven Backtesting)
+
+### 1. Modular Strategy Architecture & The 7 Quantitative Strategies
+- Created [`BaseStrategy`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/strategies/base.py) abstract interface enforcing strict separation of signal generation from execution.
+- Implemented the 7 required quantitative strategies in [`backend/app/strategies/`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/strategies/):
+  1. [`MovingAverageCrossoverStrategy`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/strategies/ma_crossover.py): Dual Moving Average Crossover (Fast vs Slow SMA) with crossover event detection.
+  2. [`RSIStrategy`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/strategies/rsi_reversal.py): Mean reversion on oversold ($<30$) and overbought ($>70$) bounds.
+  3. [`MACDStrategy`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/strategies/macd_crossover.py): MACD line & signal line crossover with histogram expansion.
+  4. [`BollingerBandsStrategy`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/strategies/bollinger_reversal.py): Channel reversion from upper/lower $2\sigma$ volatility boundaries.
+  5. [`MomentumStrategy`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/strategies/momentum.py): Rate of Change (ROC) price acceleration breakout model.
+  6. [`AISentimentStrategy`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/strategies/sentiment_strategy.py): Signals driven strictly by high-conviction FinBERT news sentiment spikes with publication timestamps $\le t$.
+  7. [`CombinedTechnicalSentimentStrategy`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/strategies/combined_strategy.py): Confluence strategy combining RSI momentum with FinBERT institutional sentiment filter.
+- Implemented [`STRATEGY_REGISTRY`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/strategies/registry.py) factory to dynamically instantiate strategies by string key.
+
+### 2. Event-Driven Backtesting Engine with Strict Zero Look-Ahead Bias
+- Built [`BacktestEngine`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/backtesting/engine.py):
+  - **Zero Look-Ahead Bias**: Signal generated on candle $t$ close is queued and filled strictly at candle $t+1$ Open.
+  - **Realistic Friction**: Supports configurable commission fees (e.g. 0.1%) and execution price slippage (e.g. 5 bps).
+  - **Intraday Risk Controls**: Evaluates intra-candle Stop-Loss and Take-Profit limits against candle High and Low before evaluating new signals.
+  - **Portfolio Tracking**: Tracks cash balance, active shares, cost basis, unrealized P&L, mark-to-market equity curve, and round-trip trade logs.
+
+### 3. Institutional Performance Analytics Engine
+- Implemented [`PerformanceMetricsCalculator`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/backtesting/metrics.py):
+  - **Total Return** and **CAGR** (Compound Annual Growth Rate).
+  - **Sharpe Ratio** (excess returns divided by annualized volatility).
+  - **Sortino Ratio** (excess returns divided by downside deviation only).
+  - **Maximum Drawdown (MDD)** and **Calmar Ratio** ($\text{CAGR} / |\text{MDD}|$).
+  - **Win Rate**, **Profit Factor** ($\sum \text{Profits} / \sum \text{Losses}$), Average Winning / Losing Trade.
+  - **Exposure Time** (% time capital is deployed).
+  - **Buy & Hold Benchmark Comparison**: Measures strategy alpha against holding the underlying asset.
+
+### 4. REST API & Database Persistence
+- Implemented endpoints in [`backtests.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/api/v1/endpoints/backtests.py):
+  - `POST /api/v1/backtests/run`: Executes full event-driven simulation, saves `BacktestRun` and all `BacktestTrade` records to DB, and returns metrics, equity curve, and trade list.
+  - `GET /api/v1/backtests`: Lists past simulation runs ordered by newest first.
+  - `GET /api/v1/backtests/{id}`: Returns run details and full metrics.
+  - `GET /api/v1/backtests/{id}/trades`: Returns audit log of executed trades.
+- Updated [`strategies.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/api/v1/endpoints/strategies.py) with all 7 prebuilt strategies.
+
+### 5. Frontend Interactive Backtest & Strategy Studio
+- Built [`EquityCurveChart`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/charts/EquityCurveChart.tsx): Responsive SVG equity curve with gradient area, Buy & Hold benchmark comparison, and range formatting.
+- Upgraded [`Backtesting.tsx`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/pages/Backtesting.tsx): Live backtest studio with symbol selector, strategy dropdown, timeframe picker, risk limits (SL/TP), live metrics cards, equity curve, and trade log audit table with P&L badges.
+- Upgraded [`StrategyBuilder.tsx`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/pages/StrategyBuilder.tsx): Modular parameter view for all 7 strategies with direct link to launch backtests.
+
+### 6. Automated Verification & Test Coverage
+- Pytest suite expanded from 27 to **34 comprehensive tests** (100% passing):
+  - `tests/test_backtest_engine.py` (5 tests):
+    - `test_zero_lookahead_bias_guarantee`: Mathematically proves that modifying future data has zero impact on past signals and execution prices.
+    - `test_slippage_and_fee_deduction`: Validates fee deduction and price slippage math.
+    - `test_stop_loss_trigger`: Validates intra-candle stop-loss fills.
+    - `test_performance_metrics_calculator`: Validates Sharpe, Sortino, Drawdown, Profit Factor.
+    - `test_all_seven_strategies_execution`: Validates backtest execution across all 7 strategies.
+  - `tests/test_backtest_api.py` (2 tests):
+    - `test_list_strategies_endpoint`: Verifies prebuilt strategy discovery.
+    - `test_run_backtest_api_endpoint`: Verifies end-to-end simulation via REST API and database storage.
+- Frontend production build (`tsc -b && vite build`) passed in 2.06s with 0 errors.
+
+---
+
+## 🚀 Next Milestone: Phase 5 (Interactive Institutional Dashboard & Real-Time Analytics)
+*Awaiting User Approval to begin Phase 5.*
+- Build comprehensive Market Overview (Top Gainers, Losers, Market Sentiment Heatmap).
+- Integrate synchronized candlestick + sentiment + indicators multi-pane charts.
+- Build Portfolio Simulator with real-time mark-to-market positions and paper-trading execution.

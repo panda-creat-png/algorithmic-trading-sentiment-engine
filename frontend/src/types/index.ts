@@ -116,6 +116,32 @@ export interface BacktestMetrics {
   benchmark_return?: number;
 }
 
+export interface EquityPoint {
+  timestamp: string;
+  equity: number;
+  cash: number;
+  positions_value: number;
+  position_size: number;
+  unrealized_pnl: number;
+  close: number;
+}
+
+export interface BacktestTrade {
+  id: number;
+  symbol: string;
+  side: string;
+  entry_time: string;
+  exit_time: string;
+  entry_price: number;
+  exit_price: number;
+  size: number;
+  fee: number;
+  slippage: number;
+  realized_pnl: number;
+  pnl_percentage: number;
+  exit_reason: string;
+}
+
 export interface BacktestRun {
   id: number;
   strategy_id: number;
@@ -127,7 +153,10 @@ export interface BacktestRun {
   timeframe: string;
   initial_capital: number;
   final_equity?: number;
+  total_fees_paid?: number;
   metrics: BacktestMetrics;
+  equity_curve?: EquityPoint[];
+  trades?: BacktestTrade[];
   error_message?: string;
   created_at: string;
 }

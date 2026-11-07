@@ -50,9 +50,9 @@ class TechnicalAnalysisEngine:
         histogram = macd_line - signal_line
 
         return {
-            "macd_line": macd_line.fill_null(0.0),
-            "signal_line": signal_line.fill_null(0.0),
-            "histogram": histogram.fill_null(0.0),
+            "macd_line": macd_line.fill_null(0.0).alias("macd_line"),
+            "signal_line": signal_line.fill_null(0.0).alias("signal_line"),
+            "histogram": histogram.fill_null(0.0).alias("histogram"),
         }
 
     @staticmethod
@@ -70,11 +70,11 @@ class TechnicalAnalysisEngine:
         pct_b = (df[col] - lower) / pl.when(upper - lower == 0).then(1e-10).otherwise(upper - lower)
 
         return {
-            "bb_middle": middle.fill_null(df[col]),
-            "bb_upper": upper.fill_null(df[col]),
-            "bb_lower": lower.fill_null(df[col]),
-            "bb_bandwidth": bandwidth.fill_null(0.0),
-            "bb_pct_b": pct_b.fill_null(0.5),
+            "bb_middle": middle.fill_null(df[col]).alias("bb_middle"),
+            "bb_upper": upper.fill_null(df[col]).alias("bb_upper"),
+            "bb_lower": lower.fill_null(df[col]).alias("bb_lower"),
+            "bb_bandwidth": bandwidth.fill_null(0.0).alias("bb_bandwidth"),
+            "bb_pct_b": pct_b.fill_null(0.5).alias("bb_pct_b"),
         }
 
     @staticmethod

@@ -34,10 +34,22 @@ PREBUILT_STRATEGIES = [
         "parameters": {"period": 20, "std_dev": 2.0}
     },
     {
+        "name": "Momentum Breakout Strategy",
+        "description": "Trades Rate of Change (ROC) price acceleration breakouts above threshold.",
+        "strategy_type": "momentum",
+        "parameters": {"lookback": 14, "threshold": 0.02}
+    },
+    {
+        "name": "FinBERT AI Sentiment Strategy",
+        "description": "Executes long/short positions exclusively on high-conviction FinBERT news sentiment spikes.",
+        "strategy_type": "sentiment",
+        "parameters": {"sentiment_threshold": 0.65, "min_confidence": 0.70}
+    },
+    {
         "name": "AI Sentiment Augmented Momentum",
         "description": "Combines RSI and MACD signals with FinBERT news sentiment confirmation score.",
         "strategy_type": "combined",
-        "parameters": {"sentiment_threshold": 0.65, "rsi_threshold": 50}
+        "parameters": {"sentiment_threshold": 0.65, "rsi_threshold": 50, "rsi_period": 14}
     }
 ]
 
