@@ -127,7 +127,7 @@ class MarketDataService:
         db_candles = list(res.scalars().all())
 
         # If DB has enough recent candles and no refresh forced, return them
-        if not force_refresh and len(db_candles) >= min(limit, 20):
+        if not force_refresh and len(db_candles) >= limit:
             # Sort chronologically ascending
             db_candles.reverse()
             candles_payload = [

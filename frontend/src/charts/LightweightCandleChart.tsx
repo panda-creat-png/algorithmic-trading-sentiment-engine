@@ -9,6 +9,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Candle } from '../types';
+import { ZoomIn, ZoomOut, Maximize2, RotateCcw, Compass } from 'lucide-react';
 
 interface LightweightCandleChartProps {
   candles: Candle[];
@@ -59,6 +60,11 @@ export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
         borderColor: '#1e293b',
         timeVisible: timeframe !== '1d' && timeframe !== '1wk',
         secondsVisible: false,
+        rightOffset: 6,
+        barSpacing: 9,
+        minBarSpacing: 0.5,
+        fixLeftEdge: true, // Prevents scrolling past the oldest candle into an empty void!
+        fixRightEdge: false,
       },
       rightPriceScale: {
         borderColor: '#1e293b',
@@ -67,6 +73,13 @@ export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
       handleScale: {
         mouseWheel: true,
         pinch: true,
+        axisPressedMouseMove: { time: true, price: true },
+      },
+      handleScroll: {
+        mouseWheel: false,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
       },
     });
 
@@ -145,15 +158,107 @@ export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
     try {
       candleSeriesRef.current.setData(formattedCandles);
       volumeSeriesRef.current.setData(formattedVolumes);
-      chartRef.current?.timeScale().fitContent();
+
+      const totalBars = formattedCandles.length;
+      if (totalBars > 0 && chartRef.current) {
+        // Show the latest 75 candles comfortably zoomed in with breathing room on the right
+        const visibleBars = Math.min(totalBars, 75);
+        chartRef.current.timeScale().setVisibleLogicalRange({
+          from: Math.max(0, totalBars - visibleBars),
+          to: totalBars + 5,
+        });
+      }
     } catch (err) {
       console.warn('Error rendering candles in chart:', err);
     }
   }, [candles]);
 
+  const handleResetToLatest = () => {
+    if (!chartRef.current || candles.length === 0) return;
+    const totalBars = candles.length;
+    const visibleBars = Math.min(totalBars, 75);
+    chartRef.current.timeScale().setVisibleLogicalRange({
+      from: Math.max(0, totalBars - visibleBars),
+      to: totalBars + 5,
+    });
+  };
+
+  const handleFitAll = () => {
+    if (!chartRef.current) return;
+    chartRef.current.timeScale().fitContent();
+  };
+
+  const handleZoomIn = () => {
+    if (!chartRef.current) return;
+    const range = chartRef.current.timeScale().getVisibleLogicalRange();
+    if (!range) return;
+    const barsCount = range.to - range.from;
+    const delta = Math.max(2, Math.floor(barsCount * 0.2));
+    chartRef.current.timeScale().setVisibleLogicalRange({
+      from: range.from + delta,
+      to: range.to,
+    });
+  };
+
+  const handleZoomOut = () => {
+    if (!chartRef.current) return;
+    const range = chartRef.current.timeScale().getVisibleLogicalRange();
+    if (!range) return;
+    const barsCount = range.to - range.from;
+    const delta = Math.max(2, Math.floor(barsCount * 0.2));
+    chartRef.current.timeScale().setVisibleLogicalRange({
+      from: Math.max(0, range.from - delta),
+      to: range.to + (delta / 2),
+    });
+  };
+
   return (
-    <div className="relative w-full h-[400px]">
+    <div className="relative w-full h-[420px] group">
       <div ref={chartContainerRef} className="w-full h-full rounded-xl overflow-hidden" />
+
+      {/* Floating Interactive Controls Toolbar */}
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-md px-2 py-1 rounded-xl border border-slate-800 shadow-lg">
+        <button
+          onClick={handleResetToLatest}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+          title="Reset to latest candles"
+        >
+          <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Latest</span>
+        </button>
+        <button
+          onClick={handleFitAll}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+          title="Fit all candles on screen"
+        >
+          <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Fit All</span>
+        </button>
+        <div className="w-[1px] h-4 bg-slate-800 my-auto" />
+        <button
+          onClick={handleZoomIn}
+          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+          title="Zoom In"
+        >
+          <ZoomIn className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={handleZoomOut}
+          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+          title="Zoom Out"
+        >
+          <ZoomOut className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Subtle Drag & Zoom Helper Hint */}
+      <div className="absolute bottom-2 left-3 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800 shadow">
+          <Compass className="w-3 h-3 text-cyan-400" />
+          <span>Drag horizontally to pan historical data • Scroll wheel to zoom</span>
+        </div>
+      </div>
+
       {candles.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 rounded-xl">
           <span className="text-sm text-slate-400">Loading {symbol} real market data...</span>
@@ -162,4 +267,3 @@ export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
     </div>
   );
 };
-

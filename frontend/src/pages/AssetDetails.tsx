@@ -16,8 +16,10 @@ import {
 export const AssetDetails: React.FC = () => {
   const { selectedSymbol } = useAppStore();
   const [timeframe, setTimeframe] = useState<string>('1d');
+  const [candleLimit, setCandleLimit] = useState<number>(300);
 
   const TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1d', '1wk'];
+  const DEPTHS = [100, 300, 500, 1000];
 
   // Fetch real OHLCV historical candles
   const {
@@ -25,8 +27,8 @@ export const AssetDetails: React.FC = () => {
     refetch: refetchHistory,
     isFetching: historyFetching,
   } = useQuery({
-    queryKey: ['market-history', selectedSymbol, timeframe],
-    queryFn: () => api.getMarketHistory(selectedSymbol, timeframe, 120),
+    queryKey: ['market-history', selectedSymbol, timeframe, candleLimit],
+    queryFn: () => api.getMarketHistory(selectedSymbol, timeframe, candleLimit),
     staleTime: 30000,
   });
 
@@ -93,18 +95,36 @@ export const AssetDetails: React.FC = () => {
           </div>
         </div>
 
-        {/* Timeframe Selector & Actions */}
-        <div className="flex items-center gap-2">
+        {/* Timeframe & Depth Selector & Actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Timeframes */}
           <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
             {TIMEFRAMES.map((tf) => (
               <button
                 key={tf}
                 onClick={() => setTimeframe(tf)}
-                className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
+                className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                   timeframe === tf ? 'bg-emerald-500 text-slate-950 shadow' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {tf}
+              </button>
+            ))}
+          </div>
+
+          {/* Candle History Depth */}
+          <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <span className="text-[10px] font-mono text-slate-500 px-1 font-bold">DEPTH:</span>
+            {DEPTHS.map((dep) => (
+              <button
+                key={dep}
+                onClick={() => setCandleLimit(dep)}
+                className={`px-2 py-0.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                  candleLimit === dep ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title={`Load ${dep} historical candles`}
+              >
+                {dep}
               </button>
             ))}
           </div>
@@ -115,7 +135,7 @@ export const AssetDetails: React.FC = () => {
               refetchIndicators();
             }}
             disabled={historyFetching}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
             title="Refresh candles & indicators"
           >
             <RefreshCw className={`w-4 h-4 ${historyFetching ? 'animate-spin text-emerald-400' : ''}`} />
@@ -126,14 +146,19 @@ export const AssetDetails: React.FC = () => {
       {/* TradingView Lightweight Charts Viewport */}
       <div className="p-5 rounded-2xl bg-[#0c1224] border border-slate-800 shadow-md">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <BarChart3 className="w-4 h-4 text-emerald-400" />
             <span className="font-bold text-white text-sm">
-              TradingView Lightweight Candlestick Chart ({selectedSymbol} • {timeframe})
+              TradingView Candlestick Chart ({selectedSymbol} • {timeframe})
             </span>
-            <span className="text-xs text-slate-500">
-              ({candles.length} candles ingested)
+            <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-slate-900 text-cyan-400 border border-slate-800 font-bold">
+              {candles.length} candles
             </span>
+            {candles.length > 0 && (
+              <span className="text-xs text-slate-500 font-mono hidden md:inline">
+                ({new Date(candles[0].timestamp).toLocaleDateString()} &rarr; {new Date(candles[candles.length - 1].timestamp).toLocaleDateString()})
+              </span>
+            )}
           </div>
 
           {latestCandle && (

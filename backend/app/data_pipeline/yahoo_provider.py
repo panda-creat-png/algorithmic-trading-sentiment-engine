@@ -9,13 +9,13 @@ from app.data_pipeline.validation import validation_service
 from app.core.logging import logger
 
 TIMEFRAME_MAP = {
-    "1m": {"interval": "1m", "default_period": "5d"},
-    "5m": {"interval": "5m", "default_period": "1mo"},
-    "15m": {"interval": "15m", "default_period": "1mo"},
-    "1h": {"interval": "1h", "default_period": "6mo"},
-    "4h": {"interval": "1h", "default_period": "1y", "resample": "4h"},
-    "1d": {"interval": "1d", "default_period": "2y"},
-    "1wk": {"interval": "1wk", "default_period": "5y"},
+    "1m": {"interval": "1m", "default_period": "7d"},
+    "5m": {"interval": "5m", "default_period": "60d"},
+    "15m": {"interval": "15m", "default_period": "60d"},
+    "1h": {"interval": "1h", "default_period": "730d"},
+    "4h": {"interval": "1h", "default_period": "730d", "resample": "4h"},
+    "1d": {"interval": "1d", "default_period": "5y"},
+    "1wk": {"interval": "1wk", "default_period": "10y"},
 }
 
 

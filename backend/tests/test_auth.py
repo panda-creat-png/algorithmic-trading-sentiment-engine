@@ -54,3 +54,4 @@ async def test_user_registration_and_login(async_client: AsyncClient):
     # 6. /me without authorization header should fail with 401
     unauth_response = await async_client.get("/api/v1/auth/me")
     assert unauth_response.status_code == 401
+

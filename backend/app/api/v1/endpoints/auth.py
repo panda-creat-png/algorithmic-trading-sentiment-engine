@@ -103,3 +103,4 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
 async def get_me(current_user: User = Depends(get_current_active_user)):
     """Returns profile information for the currently authenticated user."""
     return current_user
+

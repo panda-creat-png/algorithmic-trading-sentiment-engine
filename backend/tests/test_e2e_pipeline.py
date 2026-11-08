@@ -92,3 +92,4 @@ async def test_end_to_end_research_pipeline(async_client: AsyncClient):
     assert portfolio_data["total_equity"] > 0
     symbols_in_portfolio = [p["symbol"] for p in portfolio_data["positions"]]
     assert "NVDA" in symbols_in_portfolio
+
