@@ -9,18 +9,24 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Candle } from '../types';
-import { ZoomIn, ZoomOut, Maximize2, RotateCcw, Compass } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Scan, Compass } from 'lucide-react';
 
 interface LightweightCandleChartProps {
   candles: Candle[];
   symbol: string;
   timeframe: string;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
+  className?: string;
 }
 
 export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
   candles,
   symbol,
   timeframe,
+  isFullscreen = false,
+  onToggleFullscreen,
+  className = '',
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -63,7 +69,7 @@ export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
         rightOffset: 6,
         barSpacing: 9,
         minBarSpacing: 0.5,
-        fixLeftEdge: true, // Prevents scrolling past the oldest candle into an empty void!
+        fixLeftEdge: true, // Prevents scrolling past oldest candle into empty space
         fixRightEdge: false,
       },
       rightPriceScale: {
@@ -117,7 +123,9 @@ export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
     const resizeObserver = new ResizeObserver((entries) => {
       if (entries.length === 0 || !entries[0].contentRect) return;
       const { width, height } = entries[0].contentRect;
-      chart.applyOptions({ width, height });
+      if (width > 0 && height > 0) {
+        chart.applyOptions({ width, height });
+      }
     });
 
     resizeObserver.observe(chartContainerRef.current);
@@ -213,11 +221,15 @@ export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
   };
 
   return (
-    <div className="relative w-full h-[420px] group">
+    <div
+      className={`relative w-full ${
+        isFullscreen ? 'flex-1 h-full min-h-[500px]' : 'h-[460px]'
+      } group ${className}`}
+    >
       <div ref={chartContainerRef} className="w-full h-full rounded-xl overflow-hidden" />
 
       {/* Floating Interactive Controls Toolbar */}
-      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-md px-2 py-1 rounded-xl border border-slate-800 shadow-lg">
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-slate-900/85 backdrop-blur-md px-2 py-1 rounded-xl border border-slate-800 shadow-xl">
         <button
           onClick={handleResetToLatest}
           className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
@@ -231,7 +243,7 @@ export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
           className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           title="Fit all candles on screen"
         >
-          <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
+          <Scan className="w-3.5 h-3.5 text-cyan-400" />
           <span>Fit All</span>
         </button>
         <div className="w-[1px] h-4 bg-slate-800 my-auto" />
@@ -249,6 +261,33 @@ export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
         >
           <ZoomOut className="w-3.5 h-3.5" />
         </button>
+
+        {onToggleFullscreen && (
+          <>
+            <div className="w-[1px] h-4 bg-slate-800 my-auto" />
+            <button
+              onClick={onToggleFullscreen}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                isFullscreen
+                  ? 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/40'
+                  : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/40'
+              }`}
+              title={isFullscreen ? 'Exit Full Screen (ESC)' : 'Expand to Full Screen'}
+            >
+              {isFullscreen ? (
+                <>
+                  <Minimize2 className="w-3.5 h-3.5" />
+                  <span>Exit</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span>Full Screen</span>
+                </>
+              )}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Subtle Drag & Zoom Helper Hint */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
 import { api } from '../services/api';
@@ -11,12 +11,15 @@ import {
   Zap,
   Sliders,
   TrendingUp,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 
 export const AssetDetails: React.FC = () => {
   const { selectedSymbol } = useAppStore();
   const [timeframe, setTimeframe] = useState<string>('1d');
   const [candleLimit, setCandleLimit] = useState<number>(300);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   const TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1d', '1wk'];
   const DEPTHS = [100, 300, 500, 1000];
@@ -54,6 +57,57 @@ export const AssetDetails: React.FC = () => {
   const metrics = indicatorData?.latest_metrics || {};
   const signals = indicatorData?.signals || [];
   const bias = indicatorData?.bias || 'BULLISH';
+
+  // Toggle fullscreen mode
+  const toggleFullscreen = () => {
+    if (!isFullscreen) {
+      setIsFullscreen(true);
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } else {
+      setIsFullscreen(false);
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  };
+
+  // Keyboard and native fullscreen change listeners
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    };
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [isFullscreen]);
+
+  // Lock body scroll when in fullscreen
+  useEffect(() => {
+    if (isFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isFullscreen]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -143,13 +197,22 @@ export const AssetDetails: React.FC = () => {
         </div>
       </div>
 
-      {/* TradingView Lightweight Charts Viewport */}
-      <div className="p-5 rounded-2xl bg-[#0c1224] border border-slate-800 shadow-md">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-2">
+      {/* TradingView Lightweight Charts Viewport (Normal Card OR Fixed Fullscreen) */}
+      <div
+        className={
+          isFullscreen
+            ? 'fixed inset-0 z-50 bg-[#070c18] p-5 flex flex-col w-screen h-screen overflow-hidden'
+            : 'p-5 rounded-2xl bg-[#0c1224] border border-slate-800 shadow-md'
+        }
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-emerald-400" />
-            <span className="font-bold text-white text-sm">
-              TradingView Candlestick Chart ({selectedSymbol} • {timeframe})
+            <BarChart3 className="w-5 h-5 text-emerald-400" />
+            <span className="font-bold text-white text-sm font-mono">
+              {selectedSymbol} • TradingView Chart
+            </span>
+            <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-900 text-emerald-400 border border-slate-800">
+              {timeframe}
             </span>
             <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-slate-900 text-cyan-400 border border-slate-800 font-bold">
               {candles.length} candles
@@ -161,26 +224,89 @@ export const AssetDetails: React.FC = () => {
             )}
           </div>
 
-          {latestCandle && (
-            <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-slate-400">
-              <span>O: <strong className="text-slate-200">{latestCandle.open.toFixed(2)}</strong></span>
-              <span>H: <strong className="text-slate-200">{latestCandle.high.toFixed(2)}</strong></span>
-              <span>L: <strong className="text-slate-200">{latestCandle.low.toFixed(2)}</strong></span>
-              <span>C: <strong className="text-emerald-400">{latestCandle.close.toFixed(2)}</strong></span>
-              <span>Vol: <strong className="text-slate-200">{latestCandle.volume.toLocaleString()}</strong></span>
-              {latestCandle.vwap && (
-                <span>VWAP: <strong className="text-cyan-400">{latestCandle.vwap.toFixed(2)}</strong></span>
-              )}
+          {/* If Fullscreen: Show Timeframe & Depth Pickers inside header */}
+          {isFullscreen && (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                {TIMEFRAMES.map((tf) => (
+                  <button
+                    key={tf}
+                    onClick={() => setTimeframe(tf)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                      timeframe === tf ? 'bg-emerald-500 text-slate-950 shadow' : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {tf}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <span className="text-[10px] font-mono text-slate-500 px-1 font-bold">DEPTH:</span>
+                {DEPTHS.map((dep) => (
+                  <button
+                    key={dep}
+                    onClick={() => setCandleLimit(dep)}
+                    className={`px-2 py-0.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                      candleLimit === dep ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {dep}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
+
+          {/* OHLCV metrics & Fullscreen Toggle Button */}
+          <div className="flex items-center gap-3">
+            {latestCandle && (
+              <div className="hidden lg:flex items-center gap-3 text-xs font-mono text-slate-400">
+                <span>O: <strong className="text-slate-200">{latestCandle.open.toFixed(2)}</strong></span>
+                <span>H: <strong className="text-slate-200">{latestCandle.high.toFixed(2)}</strong></span>
+                <span>L: <strong className="text-slate-200">{latestCandle.low.toFixed(2)}</strong></span>
+                <span>C: <strong className="text-emerald-400">{latestCandle.close.toFixed(2)}</strong></span>
+                <span>Vol: <strong className="text-slate-200">{latestCandle.volume.toLocaleString()}</strong></span>
+                {latestCandle.vwap && (
+                  <span>VWAP: <strong className="text-cyan-400">{latestCandle.vwap.toFixed(2)}</strong></span>
+                )}
+              </div>
+            )}
+
+            {/* Prominent Fullscreen Button */}
+            <button
+              onClick={toggleFullscreen}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer shadow-md ${
+                isFullscreen
+                  ? 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/40'
+                  : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/40'
+              }`}
+              title={isFullscreen ? 'Exit Full Screen (ESC)' : 'Expand Chart to Full Screen'}
+            >
+              {isFullscreen ? (
+                <>
+                  <Minimize2 className="w-4 h-4" />
+                  <span>Exit Fullscreen</span>
+                  <span className="text-[10px] opacity-70 bg-rose-950 px-1 py-0.5 rounded ml-1 border border-rose-900">ESC</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-4 h-4" />
+                  <span>Full Screen</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Real Candlestick Canvas */}
-        <div className="mt-4">
+        <div className={`mt-4 ${isFullscreen ? 'flex-1 w-full h-full min-h-0' : ''}`}>
           <LightweightCandleChart
             candles={candles}
             symbol={selectedSymbol}
             timeframe={timeframe}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={toggleFullscreen}
           />
         </div>
       </div>
@@ -203,8 +329,14 @@ export const AssetDetails: React.FC = () => {
               <span className="text-slate-200 font-bold">${metrics.sma_50 ? metrics.sma_50.toFixed(2) : '--'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">VWAP:</span>
-              <span className="text-cyan-400 font-bold">${latestCandle?.vwap ? latestCandle.vwap.toFixed(2) : '--'}</span>
+              <span className="text-slate-400">EMA 20:</span>
+              <span className="text-slate-200 font-bold">${metrics.ema_20 ? metrics.ema_20.toFixed(2) : '--'}</span>
+            </div>
+            <div className="flex justify-between border-t border-slate-800/80 pt-1">
+              <span className="text-slate-400">Trend State:</span>
+              <span className="text-emerald-400 font-bold">
+                {metrics.sma_20 && metrics.sma_50 && metrics.sma_20 > metrics.sma_50 ? 'BULLISH ALIGNMENT' : 'BEARISH ALIGNMENT'}
+              </span>
             </div>
           </div>
         </div>
@@ -218,45 +350,54 @@ export const AssetDetails: React.FC = () => {
           <div className="mt-2 space-y-1.5 font-mono text-xs">
             <div className="flex justify-between">
               <span className="text-slate-400">RSI (14):</span>
-              <span className={`font-bold ${metrics.rsi_14 > 70 ? 'text-rose-400' : metrics.rsi_14 < 30 ? 'text-emerald-400' : 'text-slate-200'}`}>
-                {metrics.rsi_14 ? metrics.rsi_14.toFixed(2) : '50.00'}
+              <span
+                className={`font-bold ${
+                  (metrics.rsi_14 ?? 50) > 70
+                    ? 'text-rose-400'
+                    : (metrics.rsi_14 ?? 50) < 30
+                    ? 'text-emerald-400'
+                    : 'text-cyan-400'
+                }`}
+              >
+                {metrics.rsi_14 ? metrics.rsi_14.toFixed(1) : '--'}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">MACD Line:</span>
-              <span className="text-slate-200 font-bold">{metrics.macd_line ? metrics.macd_line.toFixed(2) : '--'}</span>
+              <span className="text-slate-400">MACD Histogram:</span>
+              <span className={`font-bold ${(metrics.macd_hist ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {metrics.macd_hist ? metrics.macd_hist.toFixed(3) : '--'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">ATR (14):</span>
               <span className="text-slate-200 font-bold">${metrics.atr_14 ? metrics.atr_14.toFixed(2) : '--'}</span>
             </div>
+            <div className="flex justify-between border-t border-slate-800/80 pt-1">
+              <span className="text-slate-400">Bollinger Upper:</span>
+              <span className="text-slate-300 font-bold">${metrics.bb_upper ? metrics.bb_upper.toFixed(2) : '--'}</span>
+            </div>
           </div>
         </div>
 
-        {/* Box 3: Bollinger & Signals */}
+        {/* Box 3: Quantitative Signals */}
         <div className="p-4 rounded-xl bg-[#0e1526] border border-slate-800">
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
             <span>Quantitative Signals</span>
             <Zap className="w-3.5 h-3.5 text-amber-400" />
           </div>
-          <div className="mt-2 space-y-1 text-xs">
-            {signals.length > 0 ? (
-              signals.map((sig: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-between py-1 border-b border-slate-800/60 font-mono">
-                  <span className="text-slate-300 font-bold">{sig.type}</span>
-                  <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                      sig.signal.includes('BULLISH')
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-rose-500/20 text-rose-400'
-                    }`}
-                  >
-                    {sig.signal}
-                  </span>
+          <div className="mt-2 space-y-2">
+            {signals.length === 0 ? (
+              <span className="text-xs text-slate-500 font-mono">No active breakout triggers on {timeframe}</span>
+            ) : (
+              signals.map((sig: string, i: number) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-[11px] font-mono text-amber-300"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  {sig}
                 </div>
               ))
-            ) : (
-              <div className="text-slate-500 py-3 text-center">No active breakout thresholds triggered.</div>
             )}
           </div>
         </div>
