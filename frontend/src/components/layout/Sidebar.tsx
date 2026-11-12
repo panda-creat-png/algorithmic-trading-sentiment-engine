@@ -11,7 +11,6 @@ import {
   BarChart3,
   Settings,
   ChevronLeft,
-  ChevronRight,
   Activity,
   ShieldCheck,
 } from 'lucide-react';
@@ -48,29 +47,50 @@ export const Sidebar: React.FC = () => {
       }`}
     >
       {/* Brand Header */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-slate-800/80">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 shadow-lg shadow-emerald-500/20 text-white font-bold shrink-0">
+      <div
+        className={`flex items-center h-16 border-b border-slate-800/80 transition-all ${
+          sidebarCollapsed ? 'justify-center px-2' : 'justify-between px-4'
+        }`}
+      >
+        {sidebarCollapsed ? (
+          /* When collapsed: show ONLY the centered full logo, NO arrow! */
+          <button
+            onClick={toggleSidebar}
+            className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 shadow-lg shadow-emerald-500/20 text-white font-bold shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer focus:outline-none"
+            title="Expand sidebar"
+          >
             <Activity className="w-5 h-5 text-emerald-100" />
-          </div>
-          {!sidebarCollapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="font-extrabold tracking-tight text-white text-base leading-tight">
-                Quant<span className="text-emerald-400">Mind</span> AI
-              </span>
-              <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-400">
-                Institutional Quant
-              </span>
+          </button>
+        ) : (
+          /* When expanded: show logo + brand title on left, collapse button on right */
+          <>
+            <div
+              onClick={() => setActiveTab('overview')}
+              className="flex items-center gap-3 overflow-hidden cursor-pointer group"
+              title="QuantMind AI"
+            >
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 shadow-lg shadow-emerald-500/20 text-white font-bold shrink-0 group-hover:scale-105 transition-transform">
+                <Activity className="w-5 h-5 text-emerald-100" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="font-extrabold tracking-tight text-white text-base leading-tight">
+                  Quant<span className="text-emerald-400">Mind</span> AI
+                </span>
+                <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-400">
+                  Institutional Quant
+                </span>
+              </div>
             </div>
-          )}
-        </div>
-        <button
-          onClick={toggleSidebar}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
-          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
+
+            <button
+              onClick={toggleSidebar}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer"
+              title="Collapse sidebar"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Navigation Links */}
