@@ -9,6 +9,8 @@ import type {
   Strategy,
   BacktestRun,
   PortfolioOverview,
+  TradeDiagnostic,
+  PositionAnalysisResponse,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
@@ -126,6 +128,16 @@ export const api = {
 
   resetPortfolio: async (): Promise<PortfolioOverview> => {
     const res = await apiClient.post<PortfolioOverview>('/portfolio/reset');
+    return res.data;
+  },
+
+  getTradeDiagnostics: async (): Promise<TradeDiagnostic[]> => {
+    const res = await apiClient.get<TradeDiagnostic[]>('/portfolio/trades');
+    return res.data;
+  },
+
+  analyzePosition: async (symbol: string): Promise<PositionAnalysisResponse> => {
+    const res = await apiClient.post<PositionAnalysisResponse>('/portfolio/analyze-position', { symbol });
     return res.data;
   },
 

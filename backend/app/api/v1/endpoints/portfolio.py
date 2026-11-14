@@ -1,5 +1,13 @@
+from typing import List
 from fastapi import APIRouter, HTTPException
-from app.schemas.portfolio import PortfolioOverview, PaperOrderRequest, SimulationRequest
+from app.schemas.portfolio import (
+    PortfolioOverview,
+    PaperOrderRequest,
+    SimulationRequest,
+    TradeDiagnostic,
+    PositionAnalysisRequest,
+    PositionAnalysisResponse,
+)
 from app.services.portfolio_service import portfolio_service
 
 router = APIRouter()
@@ -7,8 +15,25 @@ router = APIRouter()
 
 @router.get("", response_model=PortfolioOverview, summary="Get Current Mark-to-Market Paper Portfolio")
 async def get_portfolio():
-    """Returns live paper portfolio equity, cash, unrealized/realized PnL, and current positions marked to live quotes."""
+    """Returns live paper portfolio equity, cash, unrealized/realized PnL, positions, and recent trade diagnostics."""
     return await portfolio_service.get_overview()
+
+
+@router.get("/trades", response_model=List[TradeDiagnostic], summary="Get AI Trade Diagnostic Journal")
+async def get_trade_diagnostics():
+    """Returns complete trade history with AI attribution explaining why each trade won or lost."""
+    return portfolio_service.get_trade_diagnostics()
+
+
+@router.post("/analyze-position", response_model=PositionAnalysisResponse, summary="Analyze Active Position with AI")
+async def analyze_active_position(payload: PositionAnalysisRequest):
+    """Performs real-time AI diagnosis on an open position: why it is currently winning or losing and actionable advice."""
+    try:
+        return await portfolio_service.analyze_active_position(payload.symbol)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Position analysis error: {str(e)}")
 
 
 @router.post("/order", response_model=PortfolioOverview, summary="Execute Paper Order")

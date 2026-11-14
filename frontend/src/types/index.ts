@@ -171,6 +171,39 @@ export interface Position {
   unrealized_pnl_pct: number;
 }
 
+export interface TradeDiagnostic {
+  trade_id: string;
+  symbol: string;
+  side: string;
+  quantity: number;
+  entry_price: number;
+  exit_price: number;
+  realized_pnl: number;
+  pnl_pct: number;
+  outcome: 'WIN' | 'LOSS' | 'BREAKEVEN';
+  entry_time: string;
+  exit_time: string;
+  primary_reason: string;
+  technical_attribution: string;
+  sentiment_attribution: string;
+  risk_attribution: string;
+  execution_grade: string;
+  recommendation: string;
+}
+
+export interface PositionAnalysisResponse {
+  symbol: string;
+  current_price: number;
+  average_entry_price: number;
+  unrealized_pnl: number;
+  unrealized_pnl_pct: number;
+  status: 'PROFITABLE' | 'UNDERWATER' | 'NEUTRAL';
+  current_diagnosis: string;
+  technical_status: string;
+  sentiment_status: string;
+  action_advice: string;
+}
+
 export interface PortfolioOverview {
   total_equity: number;
   cash_balance: number;
@@ -178,6 +211,7 @@ export interface PortfolioOverview {
   realized_pnl: number;
   total_return_pct: number;
   positions: Position[];
+  recent_trades?: TradeDiagnostic[];
   timestamp: string;
 }
 
