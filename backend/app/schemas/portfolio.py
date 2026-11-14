@@ -25,7 +25,7 @@ class TradeDiagnostic(BaseModel):
     outcome: str  # "WIN" | "LOSS" | "BREAKEVEN"
     entry_time: datetime
     exit_time: datetime
-    primary_reason: str  # Main answer to "Why I won / Why I lost" (Sabab l-Fawz / Sabab l-Khasara)
+    primary_reason: str  # Main answer to 'Why This Trade Won / Why This Trade Lost'
     technical_attribution: str  # Details on RSI, Moving Averages, MACD, Bollinger Bands
     sentiment_attribution: str  # Details on FinBERT AI institutional sentiment
     risk_attribution: str  # Risk management, Stop-Loss / Take-Profit discipline

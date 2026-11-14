@@ -157,7 +157,7 @@ export const PortfolioSimulator: React.FC = () => {
             </span>
           </div>
           <p className="text-sm text-slate-400">
-            Real-time mark-to-market positions, liquid cash tracking, and deep AI trade autopsy ("3lach rbhti / 3lach khserti").
+            Real-time mark-to-market positions, liquid cash tracking, and deep AI trade attribution & post-mortem analysis.
           </p>
         </div>
 
@@ -453,7 +453,7 @@ export const PortfolioSimulator: React.FC = () => {
                 }`}
               >
                 <BrainCircuit className="w-3.5 h-3.5" />
-                <span>AI Trade Autopsy ("3lach?") ({tradeDiagnostics.length})</span>
+                <span>AI Trade Diagnostics & Autopsy ({tradeDiagnostics.length})</span>
               </button>
             </div>
 
@@ -659,7 +659,7 @@ export const PortfolioSimulator: React.FC = () => {
                               isWin ? 'text-emerald-400' : 'text-rose-400'
                             }`}
                           >
-                            {isWin ? '💡 3lach rbhti:' : '⚠️ 3lach khserti:'}
+                            {isWin ? '💡 Why This Trade Won:' : '⚠️ Why This Trade Lost:'}
                           </span>
                           <span className="text-slate-300 leading-relaxed">
                             {trd.primary_reason}
@@ -709,7 +709,7 @@ export const PortfolioSimulator: React.FC = () => {
                               <Lightbulb className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                               <div className="text-xs font-mono">
                                 <span className="font-bold text-emerald-300 block uppercase text-[10px]">
-                                  Key Rule to Enforce (Moustafad l-Mustaqbal):
+                                  Key Rule to Enforce (Lesson Learned):
                                 </span>
                                 <span className="text-emerald-100/90 leading-relaxed">
                                   {trd.recommendation}
@@ -781,7 +781,7 @@ export const PortfolioSimulator: React.FC = () => {
             {/* Diagnosis Detail */}
             <div className="space-y-3 font-mono text-xs">
               <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">3lach had l-position rab7a / khasra daba:</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Live Position Assessment & Drivers:</span>
                 <p className="text-slate-200 leading-relaxed">{positionDiagnosis.current_diagnosis}</p>
               </div>
 

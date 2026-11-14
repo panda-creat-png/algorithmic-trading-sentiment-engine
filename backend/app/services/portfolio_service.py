@@ -14,7 +14,7 @@ class PaperPortfolioService:
     """
     Real-Time Institutional Paper Trading, Trade Diagnostic & Attribution Engine.
     Tracks mark-to-market positions, liquid cash, realized/unrealized P&L,
-    and performs AI trade autopsy ('3lach rbhti / 3lach khserti') on all trades.
+    and performs AI trade autopsy ('Why This Trade Won / Why This Trade Lost') on all trades.
     """
 
     INITIAL_CAPITAL = 100000.0
@@ -189,7 +189,7 @@ class PaperPortfolioService:
         entry_time: datetime,
         exit_time: datetime,
     ) -> TradeDiagnostic:
-        """Dynamically generates comprehensive AI trade attribution ('3lach rbhti / 3lach khserti')."""
+        """Dynamically generates comprehensive AI trade attribution ('Why This Trade Won / Why This Trade Lost')."""
         realized_pnl = (exit_price - entry_price) * quantity
         pnl_pct = ((exit_price - entry_price) / entry_price) * 100.0 if entry_price > 0 else 0.0
         outcome = "WIN" if realized_pnl > 0 else ("LOSS" if realized_pnl < 0 else "BREAKEVEN")
@@ -249,8 +249,12 @@ class PaperPortfolioService:
     async def execute_order(self, symbol: str, side: str, quantity: float) -> PortfolioOverview:
         """Executes a paper order, updates positions, and generates trade autopsy for sales."""
         sym_clean = symbol.upper()
-        quote = await market_data_service.get_quote(sym_clean)
-        price = float(quote.get("price", 100.0))
+        try:
+            quote = await market_data_service.get_quote(sym_clean)
+            price = float(quote.get("price", 100.0))
+        except Exception:
+            price = self.positions.get(sym_clean, {}).get("average_entry_price", 100.0)
+
         side_clean = side.lower()
         now = datetime.now(timezone.utc)
 
@@ -325,8 +329,11 @@ class PaperPortfolioService:
         avg_entry = pos["average_entry_price"]
         qty = pos["quantity"]
 
-        quote = await market_data_service.get_quote(sym_clean)
-        current_price = float(quote.get("price", avg_entry))
+        try:
+            quote = await market_data_service.get_quote(sym_clean)
+            current_price = float(quote.get("price", avg_entry))
+        except Exception:
+            current_price = avg_entry
 
         unrealized = (current_price - avg_entry) * qty
         unrealized_pct = ((current_price - avg_entry) / avg_entry) * 100.0 if avg_entry > 0 else 0.0
