@@ -389,15 +389,39 @@ export const AssetDetails: React.FC = () => {
             {signals.length === 0 ? (
               <span className="text-xs text-slate-500 font-mono">No active breakout triggers on {timeframe}</span>
             ) : (
-              signals.map((sig: string, i: number) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-[11px] font-mono text-amber-300"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  {sig}
-                </div>
-              ))
+              signals.map((sig: any, i: number) => {
+                const isObj = typeof sig === 'object' && sig !== null;
+                const sigType = isObj ? (sig.type ? String(sig.type).replace(/_/g, ' ') : String(sig.signal || 'SIGNAL')) : String(sig);
+                const isBullish = isObj ? String(sig.signal || '').includes('BULL') : true;
+                const indicator = isObj ? sig.indicator : '';
+                const strength = isObj && sig.strength !== undefined ? `${Math.round(sig.strength * 100)}%` : null;
+
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded border text-[11px] font-mono transition-all ${
+                      isBullish
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                        : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          isBullish ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400 animate-pulse'
+                        }`}
+                      />
+                      <span className="font-bold truncate">{sigType}</span>
+                      {indicator && <span className="text-[10px] opacity-75 font-normal">({indicator})</span>}
+                    </div>
+                    {strength && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900/80 font-bold shrink-0 border border-slate-800">
+                        {strength}
+                      </span>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
