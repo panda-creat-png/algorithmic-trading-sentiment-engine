@@ -4,6 +4,7 @@ import {
   ColorType,
   CandlestickSeries,
   HistogramSeries,
+  CrosshairMode,
   type IChartApi,
   type ISeriesApi,
   type UTCTimestamp,
@@ -49,6 +50,7 @@ export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
         horzLines: { color: 'rgba(30, 41, 59, 0.4)' },
       },
       crosshair: {
+        mode: CrosshairMode.Normal,
         vertLine: {
           color: '#38bdf8',
           width: 1,
