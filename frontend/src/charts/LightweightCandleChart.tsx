@@ -10,7 +10,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Candle } from '../types';
-import { ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Scan, Compass } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Scan } from 'lucide-react';
 
 interface LightweightCandleChartProps {
   candles: Candle[];
@@ -292,13 +292,6 @@ export const LightweightCandleChart: React.FC<LightweightCandleChartProps> = ({
         )}
       </div>
 
-      {/* Subtle Drag & Zoom Helper Hint */}
-      <div className="absolute bottom-2 left-3 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800 shadow">
-          <Compass className="w-3 h-3 text-cyan-400" />
-          <span>Drag horizontally to pan historical data • Scroll wheel to zoom</span>
-        </div>
-      </div>
 
       {candles.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 rounded-xl">
