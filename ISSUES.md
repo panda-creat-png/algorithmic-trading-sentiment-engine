@@ -8,7 +8,7 @@ This document tracks all known technical issues, architectural limitations, secu
 
 | Total Issues Tracked | ❌ Open / Not Fixed | ⚠️ Partial / Workaround | ✅ Resolved / Fixed |
 | :---: | :---: | :---: | :---: |
-| **16** | **6** | **3** | **7** |
+| **16** | **5** | **3** | **8** |
 
 ---
 
@@ -16,7 +16,7 @@ This document tracks all known technical issues, architectural limitations, secu
 
 | ID | Issue & Component | Category | Severity | Status | Target Version / Phase |
 | :--- | :--- | :--- | :---: | :---: | :---: |
-| **ISS-01** | Empty candle response schema mismatch in `/market/{symbol}/indicators` | Backend API | **CRITICAL** | ❌ **NOT FIXED** | Phase 6.1 (Immediate) |
+| **ISS-01** | Empty candle response schema mismatch in `/market/{symbol}/indicators` | Backend API | **CRITICAL** | ✅ **FIXED** | Verified E2E Pipeline |
 | **ISS-02** | In-Memory Portfolio state reset on backend restart (`portfolio_service.py`) | Database / State | **HIGH** | ❌ **NOT FIXED** | Phase 6.1 |
 | **ISS-03** | Yahoo Finance (`yfinance`) rate-limiting without database fallback | Data Pipeline | **HIGH** | ❌ **NOT FIXED** | Phase 6.2 |
 | **ISS-04** | Redis 2-3s connection timeout delay on local dev startup without Docker | Infrastructure | **MEDIUM** | ⚠️ **PARTIAL** | Phase 6.2 |
@@ -38,34 +38,6 @@ This document tracks all known technical issues, architectural limitations, secu
 ## 🔍 Detailed Issues Breakdown
 
 ### 🔴 1. Open / Not Fixed Issues (Active Priority)
-
-#### `ISS-01`: Empty Candle Response Schema Mismatch in `/indicators`
-- **Component**: [`backend/app/api/v1/endpoints/market.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/api/v1/endpoints/market.py#L117-L119)
-- **Status**: ❌ **NOT FIXED**
-- **Severity**: **CRITICAL**
-- **Symptom**: 
-  When Yahoo Finance returns empty candles (due to rate-limiting or network timeout), the endpoint returns:
-  ```json
-  {"status": "empty", "signals": [], "metrics": {}}
-  ```
-  Missing keys: `"symbol"`, `"timeframe"`, `"total_candles"`.
-- **Impact**: 
-  `backend/tests/test_e2e_pipeline.py` crashes with `KeyError: 'symbol'`. Frontend components expecting `res.symbol` receive `undefined` and may fail silently or render empty states.
-- **Recommended Action**:
-  Update lines 117-119 in `market.py` to always return a schema-consistent response:
-  ```python
-  if not candles:
-      return {
-          "symbol": symbol.upper(),
-          "timeframe": timeframe,
-          "status": "empty",
-          "total_candles": 0,
-          "signals": [],
-          "metrics": {},
-      }
-  ```
-
----
 
 #### `ISS-02`: In-Memory Paper Portfolio State Reset on Server Restart
 - **Component**: [`backend/app/services/portfolio_service.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/services/portfolio_service.py#L23-L50)
@@ -168,6 +140,17 @@ This document tracks all known technical issues, architectural limitations, secu
 ---
 
 ### ✅ 3. Resolved Issues (Successfully Fixed)
+
+#### `ISS-01`: Empty Candle Response Schema Mismatch in `/indicators`
+- **Component**: [`backend/app/api/v1/endpoints/market.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/api/v1/endpoints/market.py), [`backend/app/indicators/technical_engine.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/indicators/technical_engine.py), [`backend/app/data_pipeline/yahoo_provider.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/data_pipeline/yahoo_provider.py)
+- **Status**: ✅ **FIXED**
+- **Resolution**:
+  - Updated `/api/v1/market/{symbol}/indicators` to always return full consistent schema (`symbol`, `timeframe`, `status: "empty"`, `total_candles: 0`, `bias: "NEUTRAL"`, `net_score: 0.0`, `signals: []`, `latest_metrics: {}`) even when candles are empty.
+  - Hardened `technical_engine.generate_signals` to always output `bias`, `net_score`, `signals`, and `latest_metrics` when `len(df) < 2`.
+  - Added adaptive fallback periods (`2y`, `1y`, `6mo`, `1mo`) in `_fetch_yfinance_history` to bypass Yahoo Finance rate-limiting on historical requests.
+  - Fully verified: `backend/tests/test_e2e_pipeline.py` passed 100%.
+
+---
 
 #### `ISS-11`: React Child Object Rendering Crash
 - **Component**: [`frontend/src/pages/AssetDetails.tsx`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/pages/AssetDetails.tsx)

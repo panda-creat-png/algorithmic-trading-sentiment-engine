@@ -119,7 +119,7 @@ class YahooFinanceProvider(BaseDataProvider):
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ):
-        """Internal synchronous helper with retry logic for yfinance."""
+        """Internal synchronous helper with retry logic and period fallback for yfinance."""
         for attempt in range(1, self.max_retries + 1):
             try:
                 ticker = yf.Ticker(symbol)
@@ -127,6 +127,15 @@ class YahooFinanceProvider(BaseDataProvider):
                     df = ticker.history(start=start_date, end=end_date, interval=interval, auto_adjust=False)
                 else:
                     df = ticker.history(period=period, interval=interval, auto_adjust=False)
+                    # If empty on long period (common with Yahoo rate-limits), retry with shorter periods
+                    if (df is None or df.empty) and period in ("5y", "10y", "730d"):
+                        for fallback_period in ("2y", "1y", "6mo", "1mo"):
+                            logger.info(f"Retrying {symbol} with fallback period {fallback_period}...")
+                            df = ticker.history(period=fallback_period, interval=interval, auto_adjust=False)
+                            if df is not None and not df.empty:
+                                break
+                if df is not None and not df.empty:
+                    return df
                 return df
             except Exception as e:
                 logger.warning(f"YahooFinance fetch attempt {attempt}/{self.max_retries} failed for {symbol}: {e}")

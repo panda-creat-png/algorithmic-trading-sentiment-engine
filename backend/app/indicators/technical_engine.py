@@ -181,7 +181,13 @@ class TechnicalAnalysisEngine:
     def generate_signals(cls, df: pl.DataFrame) -> Dict[str, Any]:
         """Generates quantitative signals from technical indicator values at current (latest) bar."""
         if len(df) < 2:
-            return {"status": "insufficient_data", "signals": []}
+            return {
+                "status": "insufficient_data",
+                "net_score": 0.0,
+                "bias": "NEUTRAL",
+                "signals": [],
+                "latest_metrics": {},
+            }
 
         df_ind = cls.compute_all_indicators(df)
         curr = df_ind.tail(1).to_dicts()[0]

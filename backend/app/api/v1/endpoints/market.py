@@ -115,7 +115,16 @@ async def get_market_indicators(
 
     candles = candles_res.get("candles", [])
     if not candles:
-        return {"status": "empty", "signals": [], "metrics": {}}
+        return {
+            "symbol": symbol.upper(),
+            "timeframe": timeframe,
+            "status": "empty",
+            "total_candles": 0,
+            "net_score": 0.0,
+            "bias": "NEUTRAL",
+            "signals": [],
+            "latest_metrics": {},
+        }
 
     pl_dict = {
         "timestamp": [c["timestamp"] for c in candles],
