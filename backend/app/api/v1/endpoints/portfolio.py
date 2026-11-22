@@ -1,5 +1,7 @@
 from typing import List
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import get_db
 from app.schemas.portfolio import (
     PortfolioOverview,
     PaperOrderRequest,
@@ -14,22 +16,22 @@ router = APIRouter()
 
 
 @router.get("", response_model=PortfolioOverview, summary="Get Current Mark-to-Market Paper Portfolio")
-async def get_portfolio():
+async def get_portfolio(db: AsyncSession = Depends(get_db)):
     """Returns live paper portfolio equity, cash, unrealized/realized PnL, positions, and recent trade diagnostics."""
-    return await portfolio_service.get_overview()
+    return await portfolio_service.get_overview(db=db)
 
 
 @router.get("/trades", response_model=List[TradeDiagnostic], summary="Get AI Trade Diagnostic Journal")
-async def get_trade_diagnostics():
+async def get_trade_diagnostics(db: AsyncSession = Depends(get_db)):
     """Returns complete trade history with AI attribution explaining why each trade won or lost."""
-    return portfolio_service.get_trade_diagnostics()
+    return await portfolio_service.get_trade_diagnostics(db=db)
 
 
 @router.post("/analyze-position", response_model=PositionAnalysisResponse, summary="Analyze Active Position with AI")
-async def analyze_active_position(payload: PositionAnalysisRequest):
+async def analyze_active_position(payload: PositionAnalysisRequest, db: AsyncSession = Depends(get_db)):
     """Performs real-time AI diagnosis on an open position: why it is currently winning or losing and actionable advice."""
     try:
-        return await portfolio_service.analyze_active_position(payload.symbol)
+        return await portfolio_service.analyze_active_position(payload.symbol, db=db)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -37,13 +39,14 @@ async def analyze_active_position(payload: PositionAnalysisRequest):
 
 
 @router.post("/order", response_model=PortfolioOverview, summary="Execute Paper Order")
-async def execute_paper_order(payload: PaperOrderRequest):
+async def execute_paper_order(payload: PaperOrderRequest, db: AsyncSession = Depends(get_db)):
     """Executes a paper BUY or SELL order at current live price and updates portfolio positions."""
     try:
         return await portfolio_service.execute_order(
             symbol=payload.symbol,
             side=payload.side,
-            quantity=payload.quantity
+            quantity=payload.quantity,
+            db=db
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -52,10 +55,10 @@ async def execute_paper_order(payload: PaperOrderRequest):
 
 
 @router.post("/reset", response_model=PortfolioOverview, summary="Reset Paper Portfolio")
-async def reset_paper_portfolio():
+async def reset_paper_portfolio(db: AsyncSession = Depends(get_db)):
     """Resets paper trading account back to $100,000 cash balance."""
-    portfolio_service.reset_portfolio()
-    return await portfolio_service.get_overview()
+    await portfolio_service.reset_portfolio(db=db)
+    return await portfolio_service.get_overview(db=db)
 
 
 @router.post("/simulate", summary="Run Portfolio Rebalancing Simulation")

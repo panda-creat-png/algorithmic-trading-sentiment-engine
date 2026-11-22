@@ -1,6 +1,11 @@
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
+from sqlalchemy import select, delete, and_
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import AsyncSessionLocal
+from app.models.portfolio import PaperAccount, PaperPosition, PaperTrade
+from app.core.logging import logger
 from app.services.market_data_service import market_data_service
 from app.schemas.portfolio import (
     PortfolioOverview,
@@ -15,11 +20,13 @@ class PaperPortfolioService:
     Real-Time Institutional Paper Trading, Trade Diagnostic & Attribution Engine.
     Tracks mark-to-market positions, liquid cash, realized/unrealized P&L,
     and performs AI trade autopsy ('Why This Trade Won / Why This Trade Lost') on all trades.
+    Persists positions, balances, and trade diagnostics to the database.
     """
 
     INITIAL_CAPITAL = 100000.0
 
     def __init__(self):
+        self._synced = False
         self.cash_balance = 35000.0
         self.realized_pnl = 8450.0
         self.positions: Dict[str, Dict[str, Any]] = {
@@ -128,8 +135,116 @@ class PaperPortfolioService:
             ),
         ]
 
-    async def get_overview(self) -> PortfolioOverview:
+    async def _ensure_synced(self, db: Optional[AsyncSession] = None) -> None:
+        """Loads state from the database if present; otherwise seeds DB with initial state."""
+        if self._synced and db is None:
+            return
+        if db is not None:
+            await self._load_or_seed_db(db)
+        else:
+            async with AsyncSessionLocal() as session:
+                await self._load_or_seed_db(session)
+
+    async def _load_or_seed_db(self, session: AsyncSession) -> None:
+        try:
+            stmt = select(PaperAccount).where(PaperAccount.account_id == "default")
+            res = await session.execute(stmt)
+            account = res.scalars().first()
+
+            if account is None:
+                # Seed DB with initial paper account, positions, and trades
+                account = PaperAccount(
+                    account_id="default",
+                    cash_balance=self.cash_balance,
+                    realized_pnl=self.realized_pnl,
+                )
+                session.add(account)
+
+                for sym, pos in self.positions.items():
+                    p_rec = PaperPosition(
+                        account_id="default",
+                        symbol=sym,
+                        quantity=pos["quantity"],
+                        average_entry_price=pos["average_entry_price"],
+                        entry_time=pos["entry_time"],
+                    )
+                    session.add(p_rec)
+
+                for tr in self.trade_history:
+                    t_rec = PaperTrade(
+                        trade_id=tr.trade_id,
+                        account_id="default",
+                        symbol=tr.symbol,
+                        side=tr.side,
+                        quantity=tr.quantity,
+                        entry_price=tr.entry_price,
+                        exit_price=tr.exit_price,
+                        realized_pnl=tr.realized_pnl,
+                        pnl_pct=tr.pnl_pct,
+                        outcome=tr.outcome,
+                        entry_time=tr.entry_time,
+                        exit_time=tr.exit_time,
+                        primary_reason=tr.primary_reason,
+                        technical_attribution=tr.technical_attribution,
+                        sentiment_attribution=tr.sentiment_attribution,
+                        risk_attribution=tr.risk_attribution,
+                        execution_grade=tr.execution_grade,
+                        recommendation=tr.recommendation,
+                    )
+                    session.add(t_rec)
+
+                await session.commit()
+                self._synced = True
+            else:
+                # Load persistent state from DB into memory
+                self.cash_balance = account.cash_balance
+                self.realized_pnl = account.realized_pnl
+
+                p_stmt = select(PaperPosition).where(PaperPosition.account_id == "default")
+                p_res = await session.execute(p_stmt)
+                db_positions = p_res.scalars().all()
+                self.positions = {
+                    p.symbol: {
+                        "quantity": p.quantity,
+                        "average_entry_price": p.average_entry_price,
+                        "entry_time": p.entry_time,
+                    }
+                    for p in db_positions
+                }
+
+                t_stmt = select(PaperTrade).where(PaperTrade.account_id == "default").order_by(PaperTrade.exit_time.desc())
+                t_res = await session.execute(t_stmt)
+                db_trades = t_res.scalars().all()
+                if db_trades:
+                    self.trade_history = [
+                        TradeDiagnostic(
+                            trade_id=t.trade_id,
+                            symbol=t.symbol,
+                            side=t.side,
+                            quantity=t.quantity,
+                            entry_price=t.entry_price,
+                            exit_price=t.exit_price,
+                            realized_pnl=t.realized_pnl,
+                            pnl_pct=t.pnl_pct,
+                            outcome=t.outcome,
+                            entry_time=t.entry_time,
+                            exit_time=t.exit_time,
+                            primary_reason=t.primary_reason,
+                            technical_attribution=t.technical_attribution,
+                            sentiment_attribution=t.sentiment_attribution,
+                            risk_attribution=t.risk_attribution,
+                            execution_grade=t.execution_grade,
+                            recommendation=t.recommendation,
+                        )
+                        for t in db_trades
+                    ]
+                self._synced = True
+        except Exception as e:
+            logger.error(f"Error syncing paper portfolio with DB: {e}")
+
+    async def get_overview(self, db: Optional[AsyncSession] = None) -> PortfolioOverview:
         """Computes live mark-to-market portfolio overview with recent trade diagnostics."""
+        await self._ensure_synced(db)
         position_models: List[PositionModel] = []
         total_market_value = 0.0
         total_unrealized_pnl = 0.0
@@ -246,8 +361,15 @@ class PaperPortfolioService:
             recommendation=rec
         )
 
-    async def execute_order(self, symbol: str, side: str, quantity: float) -> PortfolioOverview:
+    async def execute_order(
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        db: Optional[AsyncSession] = None
+    ) -> PortfolioOverview:
         """Executes a paper order, updates positions, and generates trade autopsy for sales."""
+        await self._ensure_synced(db)
         sym_clean = symbol.upper()
         try:
             quote = await market_data_service.get_quote(sym_clean)
@@ -257,6 +379,7 @@ class PaperPortfolioService:
 
         side_clean = side.lower()
         now = datetime.now(timezone.utc)
+        diagnostic: Optional[TradeDiagnostic] = None
 
         if side_clean == "buy":
             total_cost = quantity * price
@@ -317,10 +440,91 @@ class PaperPortfolioService:
         else:
             raise ValueError(f"Invalid order side '{side}'. Must be 'buy' or 'sell'.")
 
-        return await self.get_overview()
+        # Persist order to database
+        if db is not None:
+            await self._persist_order_to_db(db, sym_clean, side_clean, quantity, price, diagnostic)
+        else:
+            async with AsyncSessionLocal() as session:
+                await self._persist_order_to_db(session, sym_clean, side_clean, quantity, price, diagnostic)
 
-    async def analyze_active_position(self, symbol: str) -> PositionAnalysisResponse:
+        return await self.get_overview(db=db)
+
+    async def _persist_order_to_db(
+        self,
+        session: AsyncSession,
+        symbol: str,
+        side: str,
+        quantity: float,
+        price: float,
+        diagnostic: Optional[TradeDiagnostic] = None,
+    ) -> None:
+        try:
+            # Update Account
+            stmt = select(PaperAccount).where(PaperAccount.account_id == "default")
+            res = await session.execute(stmt)
+            account = res.scalars().first()
+            if account:
+                account.cash_balance = self.cash_balance
+                account.realized_pnl = self.realized_pnl
+
+            # Update Position
+            pos_stmt = select(PaperPosition).where(
+                and_(PaperPosition.account_id == "default", PaperPosition.symbol == symbol)
+            )
+            pos_res = await session.execute(pos_stmt)
+            pos_rec = pos_res.scalars().first()
+
+            if symbol in self.positions:
+                mem_pos = self.positions[symbol]
+                if pos_rec:
+                    pos_rec.quantity = mem_pos["quantity"]
+                    pos_rec.average_entry_price = mem_pos["average_entry_price"]
+                    pos_rec.entry_time = mem_pos["entry_time"]
+                else:
+                    new_rec = PaperPosition(
+                        account_id="default",
+                        symbol=symbol,
+                        quantity=mem_pos["quantity"],
+                        average_entry_price=mem_pos["average_entry_price"],
+                        entry_time=mem_pos["entry_time"],
+                    )
+                    session.add(new_rec)
+            else:
+                if pos_rec:
+                    await session.delete(pos_rec)
+
+            # If sell trade, persist diagnostic trade record
+            if diagnostic:
+                t_rec = PaperTrade(
+                    trade_id=diagnostic.trade_id,
+                    account_id="default",
+                    symbol=diagnostic.symbol,
+                    side=diagnostic.side,
+                    quantity=diagnostic.quantity,
+                    entry_price=diagnostic.entry_price,
+                    exit_price=diagnostic.exit_price,
+                    realized_pnl=diagnostic.realized_pnl,
+                    pnl_pct=diagnostic.pnl_pct,
+                    outcome=diagnostic.outcome,
+                    entry_time=diagnostic.entry_time,
+                    exit_time=diagnostic.exit_time,
+                    primary_reason=diagnostic.primary_reason,
+                    technical_attribution=diagnostic.technical_attribution,
+                    sentiment_attribution=diagnostic.sentiment_attribution,
+                    risk_attribution=diagnostic.risk_attribution,
+                    execution_grade=diagnostic.execution_grade,
+                    recommendation=diagnostic.recommendation,
+                )
+                session.add(t_rec)
+
+            await session.commit()
+        except Exception as e:
+            logger.error(f"Error persisting paper order to DB: {e}")
+            await session.rollback()
+
+    async def analyze_active_position(self, symbol: str, db: Optional[AsyncSession] = None) -> PositionAnalysisResponse:
         """Performs live AI diagnosis on an open position: why it is currently winning or losing."""
+        await self._ensure_synced(db)
         sym_clean = symbol.upper()
         if sym_clean not in self.positions:
             raise ValueError(f"No active position for {sym_clean} in portfolio.")
@@ -370,15 +574,50 @@ class PaperPortfolioService:
             action_advice=advice
         )
 
-    def get_trade_diagnostics(self) -> List[TradeDiagnostic]:
+    async def get_trade_diagnostics(self, db: Optional[AsyncSession] = None) -> List[TradeDiagnostic]:
         """Returns full trade diagnostic history."""
+        await self._ensure_synced(db)
         return self.trade_history
 
-    def reset_portfolio(self) -> None:
-        """Resets paper portfolio to $100,000 cash balance."""
+    async def reset_portfolio(self, db: Optional[AsyncSession] = None) -> None:
+        """Resets paper portfolio to $100,000 cash balance and clears positions/trades in DB."""
         self.cash_balance = self.INITIAL_CAPITAL
         self.realized_pnl = 0.0
         self.positions.clear()
+        self.trade_history.clear()
+
+        if db is not None:
+            await self._persist_reset_to_db(db)
+        else:
+            async with AsyncSessionLocal() as session:
+                await self._persist_reset_to_db(session)
+
+    async def _persist_reset_to_db(self, session: AsyncSession) -> None:
+        try:
+            stmt = select(PaperAccount).where(PaperAccount.account_id == "default")
+            res = await session.execute(stmt)
+            account = res.scalars().first()
+            if account:
+                account.cash_balance = self.INITIAL_CAPITAL
+                account.realized_pnl = 0.0
+            else:
+                account = PaperAccount(
+                    account_id="default",
+                    cash_balance=self.INITIAL_CAPITAL,
+                    realized_pnl=0.0,
+                )
+                session.add(account)
+
+            await session.execute(
+                delete(PaperPosition).where(PaperPosition.account_id == "default")
+            )
+            await session.execute(
+                delete(PaperTrade).where(PaperTrade.account_id == "default")
+            )
+            await session.commit()
+        except Exception as e:
+            logger.error(f"Error persisting portfolio reset to DB: {e}")
+            await session.rollback()
 
 
 portfolio_service = PaperPortfolioService()

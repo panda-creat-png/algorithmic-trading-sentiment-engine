@@ -88,3 +88,26 @@ async def test_paper_order_execution_and_reset(async_client: AsyncClient):
     assert latest_trade["symbol"] == "NVDA"
     assert latest_trade["quantity"] == 4.0
     assert "primary_reason" in latest_trade
+
+
+@pytest.mark.asyncio
+async def test_portfolio_database_persistence_across_service_instances(async_client: AsyncClient, db_session):
+    """Verifies ISS-02 fix: Paper trading positions and account state survive service re-instantiation / restarts."""
+    from app.services.portfolio_service import PaperPortfolioService
+
+    # 1. Reset and buy AAPL shares
+    await async_client.post("/api/v1/portfolio/reset")
+    buy_res = await async_client.post("/api/v1/portfolio/order", json={"symbol": "AAPL", "side": "buy", "quantity": 15.0})
+    assert buy_res.status_code == 200
+    buy_data = buy_res.json()
+    expected_cash = buy_data["cash_balance"]
+
+    # 2. Re-instantiate PaperPortfolioService from scratch (simulating backend reboot)
+    rebooted_service = PaperPortfolioService()
+    rebooted_overview = await rebooted_service.get_overview(db=db_session)
+
+    # 3. Assert that state was faithfully restored from database
+    assert rebooted_overview.cash_balance == expected_cash
+    assert len(rebooted_overview.positions) == 1
+    assert rebooted_overview.positions[0].symbol == "AAPL"
+    assert rebooted_overview.positions[0].quantity == 15.0

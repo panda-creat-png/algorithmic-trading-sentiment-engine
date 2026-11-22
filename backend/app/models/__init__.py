@@ -7,7 +7,7 @@ from app.models.sentiment import SentimentAnalysis
 from app.models.indicator import TechnicalIndicator
 from app.models.strategy import TradingStrategy, StrategyParameter
 from app.models.backtest import BacktestRun, BacktestTrade
-from app.models.portfolio import PortfolioSnapshot, Watchlist, WatchlistItem
+from app.models.portfolio import PortfolioSnapshot, Watchlist, WatchlistItem, PaperAccount, PaperPosition, PaperTrade
 
 __all__ = [
     "Base",
@@ -26,5 +26,8 @@ __all__ = [
     "PortfolioSnapshot",
     "Watchlist",
     "WatchlistItem",
+    "PaperAccount",
+    "PaperPosition",
+    "PaperTrade",
 ]
 
