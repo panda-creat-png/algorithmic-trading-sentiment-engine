@@ -58,3 +58,35 @@ async def test_market_quote_api_endpoint(async_client: AsyncClient):
     assert "day_high" in data
     assert "day_low" in data
 
+
+@pytest.mark.asyncio
+async def test_market_data_service_fallback_on_provider_empty(async_client: AsyncClient, db_session):
+    """Verifies ISS-03 fix: Resilient fallback to DB or synthetic candles when Yahoo provider is throttled or empty."""
+    from unittest.mock import patch
+    import polars as pl
+    from app.services.market_data_service import market_data_service
+
+    empty_df = pl.DataFrame(schema={
+        "timestamp": pl.Datetime(time_unit="us", time_zone="UTC"),
+        "open": pl.Float64,
+        "high": pl.Float64,
+        "low": pl.Float64,
+        "close": pl.Float64,
+        "volume": pl.Float64,
+        "vwap": pl.Float64,
+    })
+
+    with patch.object(yahoo_provider, "fetch_ohlcv", return_value=empty_df):
+        res = await market_data_service.get_historical_candles(
+            db=db_session,
+            symbol="NVDA",
+            timeframe="1d",
+            limit=20,
+            force_refresh=True,
+        )
+        assert res["symbol"] == "NVDA"
+        assert res["total_candles"] >= 20
+        assert len(res["candles"]) >= 20
+        assert res["candles"][0]["close"] > 0
+        assert res["source"] in ("resilient_fallback", "database_stale_fallback")
+
