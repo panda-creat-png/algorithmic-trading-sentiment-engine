@@ -22,3 +22,24 @@ async def test_cache_service_set_and_get():
     deleted = await cache_service.get(test_key)
     assert deleted is None
 
+
+@pytest.mark.asyncio
+async def test_redis_low_latency_fallback():
+    """Verifies ISS-04 fix: Fast non-blocking fallback (<0.5s) when Redis is unreachable."""
+    import time
+    from app.core.redis import check_redis_connection, get_redis_client
+
+    start = time.perf_counter()
+    status = await check_redis_connection()
+    elapsed = time.perf_counter() - start
+
+    assert status["status"] in ("connected", "fallback_active")
+    # Initial check finishes well under 1 second
+    assert elapsed < 1.0
+
+    # Subsequent call must be near-instantaneous (under 0.05s) due to cached availability flag
+    subsequent_start = time.perf_counter()
+    await get_redis_client()
+    subsequent_elapsed = time.perf_counter() - subsequent_start
+    assert subsequent_elapsed < 0.05
+

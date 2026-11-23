@@ -1,7 +1,7 @@
 import json
 import time
 from typing import Any, Optional
-from app.core.redis import get_redis_client
+from app.core.redis import get_redis_client, mark_redis_error
 from app.core.logging import logger
 
 
@@ -46,6 +46,7 @@ class CacheService:
                     return json.loads(data)
                 return None
         except Exception as e:
+            mark_redis_error()
             logger.debug(f"Redis get error for {key}: {e}. Falling back to memory cache.")
         
         # Fallback
@@ -63,6 +64,7 @@ class CacheService:
                 await client.set(key, serialized, ex=ttl_seconds)
                 return True
         except Exception as e:
+            mark_redis_error()
             logger.debug(f"Redis set error for {key}: {e}. Falling back to memory cache.")
         
         # Fallback
@@ -76,6 +78,7 @@ class CacheService:
             if client:
                 await client.delete(key)
         except Exception as e:
+            mark_redis_error()
             logger.debug(f"Redis delete error for {key}: {e}")
         
         _memory_cache.delete(key)
