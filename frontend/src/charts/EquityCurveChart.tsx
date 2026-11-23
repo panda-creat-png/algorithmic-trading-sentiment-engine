@@ -12,15 +12,16 @@ export const EquityCurveChart: React.FC<EquityCurveChartProps> = ({
   initialCapital,
   benchmarkReturn
 }) => {
-  if (!equityCurve || equityCurve.length === 0) {
-    return (
-      <div className="h-64 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-center font-mono text-xs text-slate-500">
-        No simulation data available. Click "Run Backtest" to generate equity curve.
-      </div>
-    );
-  }
-
   const { points, minEq, maxEq, benchmarkFinal } = useMemo(() => {
+    if (!equityCurve || equityCurve.length === 0) {
+      return {
+        points: [],
+        minEq: 0,
+        maxEq: 0,
+        benchmarkFinal: undefined,
+      };
+    }
+
     let min = Infinity;
     let max = -Infinity;
 
@@ -47,6 +48,14 @@ export const EquityCurveChart: React.FC<EquityCurveChartProps> = ({
       benchmarkFinal: benchFinal,
     };
   }, [equityCurve, initialCapital, benchmarkReturn]);
+
+  if (!equityCurve || equityCurve.length === 0) {
+    return (
+      <div className="h-64 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-center font-mono text-xs text-slate-500">
+        No simulation data available. Click "Run Backtest" to generate equity curve.
+      </div>
+    );
+  }
 
   const width = 800;
   const height = 240;
