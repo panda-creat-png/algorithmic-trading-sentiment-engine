@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy import text
+from sqlalchemy import text, event
 from app.core.config import settings
 from app.core.logging import logger
 
@@ -13,6 +13,7 @@ from app.core.logging import logger
 connect_args: Dict[str, Any] = {}
 if settings.DATABASE_URL.startswith("sqlite"):
     connect_args["check_same_thread"] = False
+    connect_args["timeout"] = 30
 
 engine = create_async_engine(
     settings.DATABASE_URL,
@@ -21,6 +22,17 @@ engine = create_async_engine(
     pool_pre_ping=True,
     connect_args=connect_args,
 )
+
+# Optimize SQLite for multi-reader multi-writer asynchronous concurrency
+if settings.DATABASE_URL.startswith("sqlite"):
+    @event.listens_for(engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA cache_size=-64000")  # 64MB memory page cache
+        cursor.close()
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

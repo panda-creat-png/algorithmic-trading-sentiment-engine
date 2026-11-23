@@ -76,3 +76,54 @@ async def test_news_and_sentiment_relation(db_session: AsyncSession):
     assert sentiment.news_id == news.id
     assert sentiment.sentiment == "positive"
 
+
+@pytest.mark.asyncio
+async def test_sqlite_concurrency_and_busy_timeout(tmp_path):
+    """Verifies ISS-05 fix: Disk-based SQLite in WAL mode with busy_timeout=30000 executes concurrent transactions without database is locked errors."""
+    import asyncio
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from sqlalchemy import event, select, text
+    from app.models.base import Base
+
+    db_file = tmp_path / "test_concurrency.db"
+    url = f"sqlite+aiosqlite:///{db_file}"
+
+    disk_engine = create_async_engine(
+        url,
+        connect_args={"check_same_thread": False, "timeout": 30},
+        future=True,
+    )
+
+    @event.listens_for(disk_engine.sync_engine, "connect")
+    def set_pragmas(dbapi_conn, record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.close()
+
+    async with disk_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        res_wal = await conn.execute(text("PRAGMA journal_mode;"))
+        assert res_wal.scalar() == "wal"
+        res_timeout = await conn.execute(text("PRAGMA busy_timeout;"))
+        assert res_timeout.scalar() == 30000
+
+    DiskSessionLocal = async_sessionmaker(bind=disk_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def insert_worker(i: int):
+        async with DiskSessionLocal() as s:
+            a = Asset(symbol=f"CONC_{i}", name=f"Concurrency {i}", asset_class="stock", exchange="NASDAQ", currency="USD")
+            s.add(a)
+            await s.commit()
+
+    # Run 5 concurrent writes on disk SQLite
+    await asyncio.gather(*[insert_worker(i) for i in range(5)])
+
+    # Verify all were inserted
+    async with DiskSessionLocal() as s:
+        res = await s.execute(select(Asset).where(Asset.symbol.startswith("CONC_")))
+        assert len(res.scalars().all()) == 5
+
+    await disk_engine.dispose()
+

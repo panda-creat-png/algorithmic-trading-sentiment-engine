@@ -2,6 +2,7 @@ import pytest
 from typing import AsyncGenerator
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy import event
 from app.main import app
 from app.models.base import Base
 from app.core.database import get_db
@@ -10,9 +11,17 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 test_engine = create_async_engine(
     TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
+    connect_args={"check_same_thread": False, "timeout": 30},
     future=True,
 )
+
+
+@event.listens_for(test_engine.sync_engine, "connect")
+def set_sqlite_test_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA busy_timeout=30000")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.close()
 
 TestingSessionLocal = async_sessionmaker(
     bind=test_engine,
