@@ -15,6 +15,12 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
+export const getMarketWebSocketUrl = (symbol: string): string => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  return `${protocol}//${host}/ws/market/${symbol.toUpperCase()}`;
+};
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {

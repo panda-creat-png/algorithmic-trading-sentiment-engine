@@ -49,6 +49,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-quantuser}:${POSTGRES_PASSWORD:-quantpass}@postgres:5432/${POSTGRES_DB:-quantmind}
       REDIS_URL: redis://redis:6379/0
       ENVIRONMENT: production
+      SECRET_KEY: ${SECRET_KEY:-}
     ports:
       - "8000:8000"
     volumes:

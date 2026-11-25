@@ -1,7 +1,21 @@
 import json
+import logging
+import secrets
 from typing import List, Union, Any
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_logger = logging.getLogger("quantmind.config")
+
+INSECURE_SECRET_KEYS = frozenset({
+    "",
+    "secret",
+    "changeme",
+    "default",
+    "dev-secret",
+    "quantmind-ai-super-secret-development-jwt-key-replace-in-production",
+})
+MIN_SECRET_KEY_LENGTH = 32
 
 
 class Settings(BaseSettings):
@@ -18,9 +32,49 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # Security
-    SECRET_KEY: str = "quantmind-ai-super-secret-development-jwt-key-replace-in-production"
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
+    @model_validator(mode="after")
+    def validate_secret_key(self) -> "Settings":
+        """Enforces strong JWT signing keys in production and safe ephemeral defaults in dev."""
+        env = self.ENVIRONMENT.strip().lower()
+        is_production = env in ("production", "prod")
+        key = (self.SECRET_KEY or "").strip()
+
+        is_insecure = (
+            not key
+            or key.lower() in INSECURE_SECRET_KEYS
+            or "replace-in-production" in key.lower()
+            or len(key) < MIN_SECRET_KEY_LENGTH
+        )
+
+        if is_production and is_insecure:
+            raise ValueError(
+                "Insecure or missing SECRET_KEY for production environment. "
+                f"SECRET_KEY must be set to a cryptographically random value of at least "
+                f"{MIN_SECRET_KEY_LENGTH} characters (not a default development placeholder). "
+                'Generate one via: python -c "import secrets; print(secrets.token_urlsafe(48))"'
+            )
+
+        if not key:
+            self.SECRET_KEY = secrets.token_urlsafe(48)
+            _logger.warning(
+                "SECRET_KEY is not set; generated an ephemeral random key for %s mode. "
+                "Set SECRET_KEY in .env to persist sessions across restarts.",
+                self.ENVIRONMENT,
+            )
+        elif is_insecure:
+            _logger.warning(
+                "Using a weak or default development SECRET_KEY in %s mode. "
+                "Replace SECRET_KEY before deploying to production.",
+                self.ENVIRONMENT,
+            )
+        else:
+            self.SECRET_KEY = key
+
+        return self
     
     # CORS
     CORS_ORIGINS: List[str] = [

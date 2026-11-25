@@ -8,7 +8,7 @@ This document tracks all known technical issues, architectural limitations, secu
 
 | Total Issues Tracked | ❌ Open / Not Fixed | ⚠️ Partial / Workaround | ✅ Resolved / Fixed |
 | :---: | :---: | :---: | :---: |
-| **16** | **3** | **2** | **11** |
+| **16** | **0** | **1** | **15** |
 
 ---
 
@@ -20,10 +20,10 @@ This document tracks all known technical issues, architectural limitations, secu
 | **ISS-02** | In-Memory Portfolio state reset on backend restart (`portfolio_service.py`) | Database / State | **HIGH** | ✅ **FIXED** | Verified DB Persistence |
 | **ISS-03** | Yahoo Finance (`yfinance`) rate-limiting without database fallback | Data Pipeline | **HIGH** | ✅ **FIXED** | Verified Resilient Fallback |
 | **ISS-04** | Redis 2-3s connection timeout delay on local dev startup without Docker | Infrastructure | **MEDIUM** | ✅ **FIXED** | Verified Fast Fallback |
-| **ISS-05** | SQLite `database is locked` concurrency risk under async load | Database | **MEDIUM** | ⚠️ **PARTIAL** | Phase 6.2 |
-| **ISS-06** | Frontend bundle size warning (>500 kB `index.js`, missing `React.lazy`) | Frontend | **MEDIUM** | ❌ **NOT FIXED** | Phase 6.3 |
-| **ISS-07** | Hardcoded default JWT `SECRET_KEY` in `config.py` | Security | **HIGH** | ❌ **NOT FIXED** | Phase 6.1 |
-| **ISS-08** | Lack of WebSockets for real-time tick-by-tick market data streaming | Architecture | **LOW** | ❌ **NOT FIXED** | Backlog / Phase 7 |
+| **ISS-05** | SQLite `database is locked` concurrency risk under async load | Database | **MEDIUM** | ✅ **FIXED** | Verified WAL Mode |
+| **ISS-06** | Frontend bundle size warning (>500 kB `index.js`, missing `React.lazy`) | Frontend | **MEDIUM** | ✅ **FIXED** | Verified Code Splitting |
+| **ISS-07** | Hardcoded default JWT `SECRET_KEY` in `config.py` | Security | **HIGH** | ✅ **FIXED** | Verified Startup Validation |
+| **ISS-08** | Lack of WebSockets for real-time tick-by-tick market data streaming | Architecture | **LOW** | ✅ **FIXED** | Verified WebSocket Streaming |
 | **ISS-09** | FinBERT CPU inference latency (1-3s) & memory consumption (~1GB) | AI Engine | **MEDIUM** | ⚠️ **PARTIAL** | Phase 6.3 |
 | **ISS-10** | External Alpaca API credentials required for real broker order execution | Brokerage | **INFO** | ℹ️ **CONFIG PENDING** | User Setup |
 | **ISS-11** | React child object rendering crash in Quantitative Signals card | Frontend UI | **HIGH** | ✅ **FIXED** | Verified (`aa78771`) |
@@ -39,58 +39,11 @@ This document tracks all known technical issues, architectural limitations, secu
 
 ### 🔴 1. Open / Not Fixed Issues (Active Priority)
 
-#### `ISS-06`: Frontend Bundle Size Warning (>500 kB Minified Chunk)
-- **Component**: [`frontend/src/App.tsx`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/App.tsx)
-- **Status**: ❌ **NOT FIXED**
-- **Severity**: **MEDIUM**
-- **Symptom**:
-  Vite production build emits:
-  `(!) Some chunks are larger than 500 kB after minification (dist/assets/index-*.js: 633.5 kB)`.
-- **Impact**:
-  Initial page load loads the entire application bundle at once, degrading initial Time-to-Interactive (TTI).
-- **Recommended Action**:
-  Implement `React.lazy` and `Suspense` route-based code splitting for heavyweight pages: `AssetDetails`, `Backtesting`, `NewsSentiment`, `PortfolioSimulator`, and `PerformanceAnalytics`.
-
----
-
-#### `ISS-07`: Hardcoded Default JWT `SECRET_KEY` in `config.py`
-- **Component**: [`backend/app/core/config.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/core/config.py#L21)
-- **Status**: ❌ **NOT FIXED**
-- **Severity**: **HIGH (Security)**
-- **Symptom**:
-  `SECRET_KEY` defaults to a known development string:
-  `"quantmind-ai-super-secret-development-jwt-key-replace-in-production"`.
-- **Impact**:
-  If a production deployment runs without an explicit `.env` setting, JWT tokens could theoretically be forged.
-- **Recommended Action**:
-  Enforce a validation error in `Settings` if `ENVIRONMENT == "production"` and `SECRET_KEY` matches the default development key.
-
----
-
-#### `ISS-08`: Absence of Real-Time WebSocket Streaming (L1 Ticks)
-- **Component**: [`backend/app/main.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/main.py), [`frontend/src/services/api.ts`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/services/api.ts)
-- **Status**: ❌ **NOT FIXED**
-- **Severity**: **LOW**
-- **Symptom**:
-  All market quotes and order book updates are fetched via REST HTTP Polling.
-- **Impact**:
-  Sub-second price updates are not streaming continuously without manual user refresh or polling timers.
-- **Recommended Action**:
-  Introduce a FastAPI WebSocket route (`/ws/market/{symbol}`) and connect it to a frontend WebSocket hook.
+*All tracked critical, high, medium, and low priority issues have been resolved.*
 
 ---
 
 ### ⚠️ 2. Partial / Workaround Issues
-
-#### `ISS-05`: SQLite Concurrency Constraints in Development
-- **Component**: [`backend/app/core/database.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/core/database.py)
-- **Status**: ⚠️ **PARTIAL**
-- **Current Behavior**:
-  Development uses SQLite (`sqlite+aiosqlite:///./quantmind.db`). Under simultaneous background news ingestion, backtest persistence, and market caching, SQLite can raise `database is locked`.
-- **Limitation**:
-  Full PostgreSQL is configured in `docker-compose.yml`, but local raw Python development still uses SQLite by default.
-
----
 
 #### `ISS-09`: FinBERT CPU Inference Overhead
 - **Component**: [`backend/app/sentiment/finbert_engine.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/sentiment/finbert_engine.py)
@@ -150,6 +103,54 @@ This document tracks all known technical issues, architectural limitations, secu
   - Added availability caching with cooldown (`_RECONNECT_COOLDOWN_SECONDS = 30.0s`): when Redis is offline in local development, subsequent cache queries return `None` in <0.05ms and immediately use fast `MemoryCache` without repetitive TCP handshake attempts.
   - Added `mark_redis_error()` integration inside `CacheService` to instantly switch to memory cache if runtime Redis operations fail.
   - Automated verification: Added and verified `test_redis_low_latency_fallback` in `backend/tests/test_cache.py` (2/2 tests passing in 0.38s).
+
+---
+
+#### `ISS-05`: SQLite Concurrency & `database is locked` Elimination
+- **Component**: [`backend/app/core/database.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/core/database.py), [`backend/tests/conftest.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/tests/conftest.py), [`backend/tests/test_models.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/tests/test_models.py)
+- **Status**: ✅ **FIXED**
+- **Resolution**:
+  - Configured `connect_args={"timeout": 30}` for SQLite engines to provide generous 30s OS lock resolution.
+  - Attached SQLAlchemy engine connection event listener executing `PRAGMA journal_mode=WAL` (Write-Ahead Logging), allowing simultaneous concurrent readers and writers without exclusive lock contention.
+  - Set `PRAGMA busy_timeout=30000`, `PRAGMA synchronous=NORMAL`, and `PRAGMA cache_size=-64000` (64MB memory page cache) for smooth asynchronous throughput.
+  - Automated verification: Added and verified `test_sqlite_concurrency_and_busy_timeout` in `backend/tests/test_models.py`, proving concurrent asynchronous transactions execute without locking errors (3/3 tests passing).
+
+---
+
+#### `ISS-06`: Frontend Bundle Size Warning (>500 kB Minified Chunk)
+- **Component**: [`frontend/src/App.tsx`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/App.tsx), [`frontend/src/charts/EquityCurveChart.tsx`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/charts/EquityCurveChart.tsx)
+- **Status**: ✅ **FIXED**
+- **Resolution**:
+  - Implemented dynamic route-based code splitting via `React.lazy` and `Suspense` across all application modules (`Overview`, `MarketExplorer`, `AssetDetails`, `NewsSentiment`, `AIInsights`, `StrategyBuilder`, `Backtesting`, `PortfolioSimulator`, `PerformanceAnalytics`, `Settings`).
+  - Added institutional animated `PageLoader` spinner during on-demand module fetching.
+  - Reduced the main entry chunk (`index.js`) from 633.50 kB to 259.49 kB (80.75 kB gzip), completely eliminating the Vite `>500 kB` bundle warning.
+  - Refactored `EquityCurveChart.tsx` to call `useMemo` unconditionally, resolving all React hook rules warnings.
+  - Automated verification: `npm --prefix frontend run build` completes with 0 warnings/errors and all chunks are well below the 500 kB threshold.
+
+---
+
+#### `ISS-07`: Hardcoded Default JWT `SECRET_KEY` Validation & Secure Handling
+- **Component**: [`backend/app/core/config.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/core/config.py), [`docker-compose.yml`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/docker-compose.yml), [`.env.example`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/.env.example), [`backend/tests/test_config.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/tests/test_config.py)
+- **Status**: ✅ **FIXED**
+- **Resolution**:
+  - Removed the hardcoded default JWT `SECRET_KEY` literal from `Settings` in `backend/app/core/config.py` and added a Pydantic `model_validator` (`validate_secret_key`).
+  - Enforced strict startup failure (`ValueError`) whenever `ENVIRONMENT` is `production`/`prod` and `SECRET_KEY` is missing, shorter than 32 characters, or matches known insecure/placeholder values.
+  - Added automatic ephemeral CSPRNG key generation (`secrets.token_urlsafe(48)`) when `SECRET_KEY` is omitted in development/test environments, plus explicit warning logs when weak placeholders are used in development.
+  - Wired `SECRET_KEY: ${SECRET_KEY:-}` forwarding in `docker-compose.yml` and documented strong key generation in `.env.example`.
+  - Automated verification: Added 6 unit tests in `backend/tests/test_config.py` and verified alongside `test_auth.py` and `test_health.py` (10/10 tests passing).
+
+---
+
+#### `ISS-08`: Real-Time WebSocket Streaming for L1 Ticks & Market Quotes
+- **Component**: [`backend/app/main.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/main.py), [`backend/app/websockets/market_ws.py`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/backend/app/websockets/market_ws.py), [`frontend/src/hooks/useMarketWebSocket.ts`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/hooks/useMarketWebSocket.ts), [`frontend/src/pages/AssetDetails.tsx`](file:///c:/Users/Dell/Desktop/algorithmic-trading-sentiment-engine/frontend/src/pages/AssetDetails.tsx)
+- **Status**: ✅ **FIXED**
+- **Resolution**:
+  - Implemented an institutional `MarketWebSocketManager` in `backend/app/websockets/market_ws.py` supporting per-symbol subscriptions, heartbeat ping/pong, immediate snapshot transmission on connect, and sub-second geometric micro-tick streaming.
+  - Exposed WebSocket routes at `/ws/market/{symbol}`, `/ws/market` (multi-asset with dynamic JSON subscription actions), and `/api/v1/market/ws/{symbol}`.
+  - Created `frontend/src/hooks/useMarketWebSocket.ts` with automatic reconnection, heartbeat pings, and real-time state management.
+  - Configured Vite WebSocket proxy in `frontend/vite.config.ts` (`/ws` -> `ws://127.0.0.1:8000`).
+  - Integrated live streaming into `frontend/src/pages/AssetDetails.tsx` with an institutional pulsing `LIVE (WS)` badge and sub-second real-time price updates.
+  - Automated verification: 4/4 integration tests passed in `backend/tests/test_websockets.py` and frontend build passed with 0 errors.
 
 ---
 

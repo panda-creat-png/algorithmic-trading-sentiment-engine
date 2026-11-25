@@ -58,6 +58,18 @@ export interface MarketQuote {
   updated_at: string;
 }
 
+export interface MarketTick {
+  type: 'tick';
+  symbol: string;
+  price: number;
+  bid: number;
+  ask: number;
+  change: number;
+  change_percent: number;
+  volume: number;
+  timestamp: string;
+}
+
 export interface NewsArticle {
   id: number;
   title: string;

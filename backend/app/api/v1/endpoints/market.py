@@ -1,8 +1,9 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, WebSocket
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.services.market_data_service import market_data_service
+from app.websockets.market_ws import market_ws_manager
 from app.schemas.market import (
     AssetResponse,
     MarketHistoryResponse,
@@ -143,3 +144,16 @@ async def get_market_indicators(
         "total_candles": len(candles),
         **signals_report,
     }
+
+
+@router.websocket("/ws/{symbol}")
+async def websocket_market_symbol_endpoint(websocket: WebSocket, symbol: str):
+    """Sub-second L1 market ticks WebSocket stream for a specific ticker."""
+    await market_ws_manager.handle_client(websocket, initial_symbol=symbol)
+
+
+@router.websocket("/ws")
+async def websocket_market_multi_endpoint(websocket: WebSocket):
+    """Multi-asset WebSocket stream with dynamic subscribe/unsubscribe JSON actions."""
+    await market_ws_manager.handle_client(websocket, initial_symbol=None)
+

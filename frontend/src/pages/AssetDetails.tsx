@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
 import { api } from '../services/api';
+import { useMarketWebSocket } from '../hooks/useMarketWebSocket';
 import { LightweightCandleChart } from '../charts/LightweightCandleChart';
 import {
   BarChart3,
@@ -35,12 +36,17 @@ export const AssetDetails: React.FC = () => {
     staleTime: 30000,
   });
 
-  // Fetch real-time live quote
+  // Real-time WebSocket tick stream
+  const { isConnected: isWsConnected, liveQuote } = useMarketWebSocket(selectedSymbol);
+
+  // Fallback REST quote polling
   const { data: quoteData } = useQuery({
     queryKey: ['market-quote', selectedSymbol],
     queryFn: () => api.getQuote(selectedSymbol),
-    refetchInterval: 10000,
+    refetchInterval: isWsConnected ? false : 10000,
   });
+
+  const displayQuote = liveQuote || quoteData;
 
   // Fetch computed technical indicators & quantitative signals
   const { data: indicatorData, refetch: refetchIndicators } = useQuery({
@@ -52,7 +58,7 @@ export const AssetDetails: React.FC = () => {
   const candles = historyData?.candles || [];
   const latestCandle = candles.length > 0 ? candles[candles.length - 1] : null;
 
-  const isPositive = (quoteData?.change ?? 0) >= 0;
+  const isPositive = (displayQuote?.change ?? 0) >= 0;
 
   const metrics = indicatorData?.latest_metrics || {};
   const signals = indicatorData?.signals || [];
@@ -123,6 +129,16 @@ export const AssetDetails: React.FC = () => {
               <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-slate-800 text-slate-300 border border-slate-700">
                 {selectedSymbol.includes('-USD') ? 'CRYPTO 24/7' : 'US EQUITY'}
               </span>
+              {isWsConnected ? (
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  LIVE (WS)
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                  POLLING
+                </span>
+              )}
               <span
                 className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${
                   bias === 'BULLISH'
@@ -137,12 +153,12 @@ export const AssetDetails: React.FC = () => {
             </div>
             <div className="flex items-center gap-3 mt-1">
               <span className="text-xl font-black text-white font-mono">
-                ${(quoteData?.price ?? latestCandle?.close ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                ${(displayQuote?.price ?? latestCandle?.close ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
-              {quoteData && (
+              {displayQuote && (
                 <span className={`flex items-center text-xs font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {isPositive ? <ArrowUpRight className="w-4 h-4 mr-0.5" /> : <ArrowDownRight className="w-4 h-4 mr-0.5" />}
-                  {isPositive ? `+${quoteData.change}` : quoteData.change} ({quoteData.change_percent}%)
+                  {isPositive ? `+${displayQuote.change}` : displayQuote.change} ({displayQuote.change_percent}%)
                 </span>
               )}
             </div>

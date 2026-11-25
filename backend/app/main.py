@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging, logger
 from app.core.database import init_db, check_db_connection
 from app.core.redis import check_redis_connection, close_redis
 from app.api.v1.api import api_router
+from app.websockets.market_ws import market_ws_manager
 
 
 @asynccontextmanager
@@ -32,6 +33,7 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down QuantMind AI backend...")
+    await market_ws_manager.close_all()
     await close_redis()
 
 
@@ -77,4 +79,18 @@ async def healthz():
         "database": db_status.get("status"),
         "redis": redis_status.get("status"),
     }
+
+
+# Real-time WebSocket Market Data Endpoints
+@app.websocket("/ws/market/{symbol}")
+async def websocket_market_symbol(websocket: WebSocket, symbol: str):
+    """Institutional real-time L1 market ticks WebSocket stream for a specific asset."""
+    await market_ws_manager.handle_client(websocket, initial_symbol=symbol)
+
+
+@app.websocket("/ws/market")
+async def websocket_market_multi(websocket: WebSocket):
+    """Multi-asset real-time WebSocket market data stream with dynamic client subscription."""
+    await market_ws_manager.handle_client(websocket, initial_symbol=None)
+
 
